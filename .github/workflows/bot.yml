@@ -4,7 +4,6 @@ on:
   schedule:
 
     # 5 PM WIB = 10 AM UTC
-
     - cron: '0 10 * * 1-5'
 
   workflow_dispatch:
@@ -13,6 +12,9 @@ jobs:
   run-bot:
 
     runs-on: ubuntu-latest
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
 
@@ -26,6 +28,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run Bot
