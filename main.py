@@ -83,36 +83,15 @@ ihsg_change = (
 
 print("Getting sector performance...")
 
-sector_symbols = {
-    "Finance": "^JKSEFIN",
-    "Mining": "^JKSEMIN",
-    "Industry": "^JKSEIND",
-    "Consumer": "^JKSECYC",
-    "Infrastructure": "^JKSEINF",
-    "Property": "^JKSEPROP"
-}
-
-sector_perf = []
-
-for name, symbol in sector_symbols.items():
-
-    try:
-        df = yf.Ticker(symbol).history(period="2d")
-
-        if len(df) < 2:
-            continue
-
-        prev = df["Close"].iloc[-2]
-        last = df["Close"].iloc[-1]
-
-        change = ((last - prev) / prev) * 100
-
-        sector_perf.append((name, change))
-
-    except:
-        continue
-
-sector_perf.sort(key=lambda x: x[1], reverse=True)
+_, sector_df = (
+    Query()
+    .set_markets("indonesia")
+    .select("name", "change", "sector")
+    .limit(1000)
+    .get_scanner_data()
+)
+sector_perf = sector_df.groupby("sector")["change"].mean()
+sector_perf = sector_perf.sort_values(ascending=False)
 
 # ====================================
 # TOP GAINERS
@@ -246,8 +225,11 @@ message += (
 
 message += "SECTORS\n"
 
-for name, chg in sector_perf:
-    message += f"{name:<14} {chg:>6.2f}%\n"
+for sector, chg in sector_perf.items():
+    if str(sector) == "nan":
+        continue
+
+    message += f"{sector:<15} {chg:>6.2f}%\n"
 
 message += "\n"
 
