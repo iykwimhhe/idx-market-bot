@@ -228,9 +228,9 @@ message += (
 )
 
 message += (
-    f"📊 MARKET BREADTH\n"
+    f"MARKET BREADTH\n"
     f"{sentiment}\n"
-    f"🟢 {advancers}  🔴 {decliners}  ⚪ {flat}\n\n"
+    f"🟢 {advancers}  🔴 {decliners}  🟡 {flat}\n\n"
 )
 
 message += "SECTORS\n"
