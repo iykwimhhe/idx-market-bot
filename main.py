@@ -242,7 +242,7 @@ for sector, chg in sector_perf.items():
 
     arrow = "🟢" if chg > 0 else "🔴"
 
-    sector_name = str(sector)[:13].ljust(13)
+    sector_name = str(sector)[:18].ljust(18)
 
     message += (
         f"{arrow} {sector_name} "
