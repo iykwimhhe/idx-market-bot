@@ -66,16 +66,18 @@ print("Getting IHSG...")
 
 ihsg = yf.Ticker("^JKSE")
 
-hist = ihsg.history(period="2d")
+hist = ihsg.history(period="5d")
+
+hist = hist.dropna()
+
+if len(hist) < 2:
+    print("IHSG data not sufficient")
+    exit()
 
 prev_close = hist["Close"].iloc[-2]
-
 today_close = hist["Close"].iloc[-1]
 
-ihsg_change = (
-    (today_close - prev_close)
-    / prev_close
-) * 100
+ihsg_change = ((today_close - prev_close) / prev_close) * 100
 
 # ====================================
 # Sector Performance
