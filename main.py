@@ -245,7 +245,7 @@ message += "\n"
 # TOP GAINERS
 # ====================================
 
-message += "TOP GAINERS\n"
+message += "🔥 TOP GAINERS\n━━━━━━━━━━━━━━━━\n"
 
 for i, (_, row) in enumerate(gainers_df.iterrows(), start=1):
 
@@ -263,7 +263,7 @@ for i, (_, row) in enumerate(gainers_df.iterrows(), start=1):
 # TOP LOSERS
 # ====================================
 
-message += "\nTOP LOSERS\n"
+message += "\n🩸 TOP LOSERS\n━━━━━━━━━━━━━━━━\n"
 
 for i, (_, row) in enumerate(losers_df.iterrows(), start=1):
 
@@ -281,7 +281,7 @@ for i, (_, row) in enumerate(losers_df.iterrows(), start=1):
 # TOP VALUE
 # ====================================
 
-message += "\nTOP VALUE\n"
+message += "\n💰 TOP VALUE\n━━━━━━━━━━━━━━━━\n"
 
 for i, (_, row) in enumerate(value_df.iterrows(), start=1):
 
