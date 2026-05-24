@@ -303,9 +303,9 @@ for i, (_, row) in enumerate(value_df.iterrows(), start=1):
 
     message += (
         f"{i:>2}. {name} "
-        f"{row['change']:>6.2f}% "
-        f"Rp{traded:>7.1f}B\n"
-    )
+        f"Rp{traded:>7.1f}B "
+        f"{row['change']:>6.2f}%\n"
+)
 
 # ====================================
 # PRINT MESSAGE
