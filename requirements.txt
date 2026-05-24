@@ -2,3 +2,4 @@ tradingview-screener
 requests
 yfinance
 pandas
+holidays
