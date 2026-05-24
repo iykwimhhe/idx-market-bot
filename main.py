@@ -226,10 +226,18 @@ message += (
 message += "SECTORS\n"
 
 for sector, chg in sector_perf.items():
+
     if str(sector) == "nan":
         continue
 
-    message += f"{sector:<15} {chg:>6.2f}%\n"
+    arrow = "🟢" if chg > 0 else "🔴"
+
+    sector_name = str(sector)[:13].ljust(13)
+
+    message += (
+        f"{arrow} {sector_name} "
+        f"{chg:>6.2f}%\n"
+    )
 
 message += "\n"
 
