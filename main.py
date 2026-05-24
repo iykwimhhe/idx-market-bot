@@ -78,6 +78,51 @@ ihsg_change = (
 ) * 100
 
 # ====================================
+# Sector Performance
+# ====================================
+
+print("Getting sector performance...")
+
+sectors = {
+    "Finance": "IDXFINANCE",
+    "Mining": "IDXENERGY",
+    "Industry": "IDXINDUST",
+    "Consumer": "IDXNONCYC",
+    "Infrastructure": "IDXINFRA",
+    "Property": "IDXPROPERT",
+}
+
+sector_perf = []
+
+for name, symbol in sectors.items():
+
+    try:
+        data = (
+            Query()
+            .set_markets("indonesia")
+            .select("close", "change")
+            .limit(1)
+            .get_scanner_data()
+        )
+
+        # fallback using yfinance-style approach via TradingView
+        _, df = (
+            Query()
+            .set_markets("indonesia")
+            .search(symbol)
+            .limit(1)
+            .get_scanner_data()
+        )
+
+        if len(df) > 0:
+            sector_perf.append((name, df.iloc[0]["change"]))
+
+    except:
+        continue
+
+sector_perf = sorted(sector_perf, key=lambda x: x[1], reverse=True)
+
+# ====================================
 # TOP GAINERS
 # ====================================
 
@@ -168,6 +213,23 @@ _, value_df = (
 
 )
 
+print("Getting market breadth...")
+
+_, breadth_df = (
+    Query()
+    .set_markets("indonesia")
+    .select(
+        "name",
+        "change"
+    )
+    .get_scanner_data()
+)
+
+advancers = (breadth_df["change"] > 0).sum()
+decliners = (breadth_df["change"] < 0).sum()
+flat = (breadth_df["change"] == 0).sum()
+total = len(breadth_df)
+
 # ====================================
 # BUILD MESSAGE
 # ====================================
@@ -184,6 +246,18 @@ message = (
 message += (
     f"IHSG : {ihsg_change:.2f}%\n\n"
 )
+
+message += (
+    f"BREADTH\n"
+    f"Adv: {advancers}  Dec: {decliners}  Flat: {flat}\n\n"
+)
+
+message += "SECTORS\n"
+
+for name, chg in sector_perf:
+    message += f"{name:<12} {chg:>6.2f}%\n"
+
+message += "\n"
 
 # ====================================
 # TOP GAINERS
