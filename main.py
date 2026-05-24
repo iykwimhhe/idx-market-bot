@@ -83,44 +83,36 @@ ihsg_change = (
 
 print("Getting sector performance...")
 
-sectors = {
-    "Finance": "IDXFINANCE",
-    "Mining": "IDXENERGY",
-    "Industry": "IDXINDUST",
-    "Consumer": "IDXNONCYC",
-    "Infrastructure": "IDXINFRA",
-    "Property": "IDXPROPERT",
+sector_symbols = {
+    "Finance": "^JKSEFIN",
+    "Mining": "^JKSEMIN",
+    "Industry": "^JKSEIND",
+    "Consumer": "^JKSECYC",
+    "Infrastructure": "^JKSEINF",
+    "Property": "^JKSEPROP"
 }
 
 sector_perf = []
 
-for name, symbol in sectors.items():
+for name, symbol in sector_symbols.items():
 
     try:
-        data = (
-            Query()
-            .set_markets("indonesia")
-            .select("close", "change")
-            .limit(1)
-            .get_scanner_data()
-        )
+        df = yf.Ticker(symbol).history(period="2d")
 
-        # fallback using yfinance-style approach via TradingView
-        _, df = (
-            Query()
-            .set_markets("indonesia")
-            .search(symbol)
-            .limit(1)
-            .get_scanner_data()
-        )
+        if len(df) < 2:
+            continue
 
-        if len(df) > 0:
-            sector_perf.append((name, df.iloc[0]["change"]))
+        prev = df["Close"].iloc[-2]
+        last = df["Close"].iloc[-1]
+
+        change = ((last - prev) / prev) * 100
+
+        sector_perf.append((name, change))
 
     except:
         continue
 
-sector_perf = sorted(sector_perf, key=lambda x: x[1], reverse=True)
+sector_perf.sort(key=lambda x: x[1], reverse=True)
 
 # ====================================
 # TOP GAINERS
@@ -213,22 +205,22 @@ _, value_df = (
 
 )
 
-print("Getting market breadth...")
+print("Getting full market breadth...")
 
-_, breadth_df = (
+_, all_df = (
     Query()
     .set_markets("indonesia")
-    .select(
-        "name",
-        "change"
-    )
+    .select("name", "change")
+    .limit(1000)   # important
     .get_scanner_data()
 )
 
-advancers = (breadth_df["change"] > 0).sum()
-decliners = (breadth_df["change"] < 0).sum()
-flat = (breadth_df["change"] == 0).sum()
-total = len(breadth_df)
+all_df = all_df.dropna()
+
+advancers = (all_df["change"] > 0).sum()
+decliners = (all_df["change"] < 0).sum()
+flat = (all_df["change"] == 0).sum()
+total = len(all_df)
 
 # ====================================
 # BUILD MESSAGE
@@ -248,14 +240,14 @@ message += (
 )
 
 message += (
-    f"BREADTH\n"
+    f"BREADTH (FULL)\n"
     f"Adv: {advancers}  Dec: {decliners}  Flat: {flat}\n\n"
 )
 
 message += "SECTORS\n"
 
 for name, chg in sector_perf:
-    message += f"{name:<12} {chg:>6.2f}%\n"
+    message += f"{name:<14} {chg:>6.2f}%\n"
 
 message += "\n"
 
