@@ -201,6 +201,15 @@ decliners = (all_df["change"] < 0).sum()
 flat = (all_df["change"] == 0).sum()
 total = len(all_df)
 
+ratio = advancers / (decliners + 1)
+
+if ratio > 1.2:
+    sentiment = "🟢 Strong Bullish"
+elif ratio > 1.0:
+    sentiment = "🟡 Mixed"
+else:
+    sentiment = "🔴 Weak"
+
 # ====================================
 # BUILD MESSAGE
 # ====================================
@@ -219,8 +228,9 @@ message += (
 )
 
 message += (
-    f"BREADTH (FULL)\n"
-    f"Adv: {advancers}  Dec: {decliners}  Flat: {flat}\n\n"
+    f"📊 MARKET BREADTH\n"
+    f"{sentiment}\n"
+    f"🟢 {advancers}  🔴 {decliners}  ⚪ {flat}\n\n"
 )
 
 message += "SECTORS\n"
