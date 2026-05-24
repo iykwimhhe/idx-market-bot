@@ -54,9 +54,7 @@ if today_date in indo_holidays:
 # DATE
 # ====================================
 
-today = datetime.now().strftime(
-    "%d %b %Y"
-)
+today = datetime.now().strftime("%A, %d %b %Y")
 
 # ====================================
 # IHSG
