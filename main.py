@@ -1,14 +1,18 @@
 from tradingview_screener import Query
 import requests
-from datetime import datetime
+from datetime import datetime, date
 import yfinance as yf
+import holidays
+import os
 
 # ====================================
 # TELEGRAM SETTINGS
 # ====================================
 
-BOT_TOKEN = "8920968558:AAFLckHxHMTGL3GEhR2JBOXivxxCMKgTdxw"
-CHAT_ID = "@idxdailymarketdata"
+import os
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
 # ====================================
 # TELEGRAM FUNCTION
@@ -16,27 +20,35 @@ CHAT_ID = "@idxdailymarketdata"
 
 def send_telegram(message):
 
-    url = (
-        f"https://api.telegram.org/"
-        f"bot{BOT_TOKEN}/sendMessage"
-    )
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
     payload = {
-
         "chat_id": CHAT_ID,
-
-        "text": f"```{message}```",
-
-        "parse_mode": "Markdown"
-
+        "text": f"<pre>{message}</pre>",
+        "parse_mode": "HTML"
     }
 
-    response = requests.post(
-        url,
-        data=payload
+    response = requests.post(url, data=payload)
+
+    print(response.status_code)
+    print(response.text)
+
+# ====================================
+# INDONESIAN HOLIDAY CHECK
+# ====================================
+
+today_date = date.today()
+
+indo_holidays = holidays.ID()
+
+if today_date in indo_holidays:
+
+    print(
+        f"Today is holiday: "
+        f"{indo_holidays[today_date]}"
     )
 
-    print(response.text)
+    exit()
 
 # ====================================
 # DATE
@@ -140,6 +152,7 @@ _, value_df = (
     .select(
         "name",
         "close",
+        "change",
         "volume",
         "Value.Traded"
     )
@@ -176,82 +189,54 @@ message += (
 # TOP GAINERS
 # ====================================
 
-message += "🔥 TOP GAINERS\n"
+message += "TOP GAINERS\n"
 
-for i, (_, row) in enumerate(
-    gainers_df.iterrows(),
-    start=1
-):
+for i, (_, row) in enumerate(gainers_df.iterrows(), start=1):
 
-    traded = (
-        row['close']
-        * row['volume']
-    ) / 1_000_000_000
+    name = row['name'][:6].ljust(6)
+
+    traded = (row['close'] * row['volume']) / 1_000_000_000
 
     message += (
-
-        f"{i:>2}. "
-
-        f"{row['name']:<6}"
-
-        f"{row['change']:>8.2f}%   "
-
-        f"Rp {traded:.1f}B\n"
-
+        f"{i:>2}. {name} "
+        f"{row['change']:>6.2f}% "
+        f"Rp{traded:>7.1f}B\n"
     )
 
 # ====================================
 # TOP LOSERS
 # ====================================
 
-message += "\n🩸 TOP LOSERS\n"
+message += "\nTOP LOSERS\n"
 
-for i, (_, row) in enumerate(
-    losers_df.iterrows(),
-    start=1
-):
+for i, (_, row) in enumerate(losers_df.iterrows(), start=1):
 
-    traded = (
-        row['close']
-        * row['volume']
-    ) / 1_000_000_000
+    name = row['name'][:6].ljust(6)
+
+    traded = (row['close'] * row['volume']) / 1_000_000_000
 
     message += (
-
-        f"{i:>2}. "
-
-        f"{row['name']:<6}"
-
-        f"{row['change']:>8.2f}%   "
-
-        f"Rp {traded:.1f}B\n"
-
+        f"{i:>2}. {name} "
+        f"{row['change']:>6.2f}% "
+        f"Rp{traded:>7.1f}B\n"
     )
 
 # ====================================
 # TOP VALUE
 # ====================================
 
-message += "\n💰 TOP VALUE\n"
+message += "\nTOP VALUE\n"
 
-for i, (_, row) in enumerate(
-    value_df.iterrows(),
-    start=1
-):
+for i, (_, row) in enumerate(value_df.iterrows(), start=1):
 
-    traded = (
-        row['Value.Traded']
-        / 1_000_000_000
-    )
+    name = row['name'][:6].ljust(6)
+
+    traded = row['Value.Traded'] / 1_000_000_000
 
     message += (
-
-        f"{i:>2}. "
-
-        f"{row['name']:<6}"
-
-        f"Rp {traded:.1f}B\n"
-
+        f"{i:>2}. {name} "
+        f"{row['change']:>6.2f}% "
+        f"Rp{traded:>7.1f}B\n"
     )
 
 # ====================================
