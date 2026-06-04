@@ -57,6 +57,16 @@ if today_date in indo_holidays:
 today = datetime.now().strftime("%A, %d %b %Y")
 
 # ====================================
+# RUN TIME
+# ====================================
+
+from zoneinfo import ZoneInfo
+
+run_time = datetime.now(
+    ZoneInfo("Asia/Jakarta")
+).strftime("%H:%M WIB")
+
+# ====================================
 # IHSG
 # ====================================
 
@@ -216,7 +226,8 @@ else:
 
 message = (
     f"📊 IDX MARKET UPDATE\n"
-    f"{today}\n\n"
+    f"{today}\n"
+    f"Run: {run_time}\n\n"
 )
 
 # ====================================
