@@ -224,7 +224,7 @@ message = (
 # ====================================
 
 message += (
-    f"IHSG : {ihsg_change:.2f}%\n\n"
+    f"IHSG : {today_close:,.2f} ({ihsg_change:+.2f}%)\n\n"
 )
 
 message += (
@@ -284,6 +284,7 @@ for i, (_, row) in enumerate(losers_df.iterrows(), start=1):
 
     message += (
         f"{i:>2}. {name} "
+        f"{row['close']:>7,.0f} "
         f"{row['change']:>6.2f}% "
         f"Rp{traded:>7.1f}B\n"
     )
@@ -302,6 +303,7 @@ for i, (_, row) in enumerate(value_df.iterrows(), start=1):
 
     message += (
         f"{i:>2}. {name} "
+        f"{row['close']:>7,.0f} "
         f"Rp{traded:>7.1f}B "
         f"{row['change']:>6.2f}%\n"
 )
