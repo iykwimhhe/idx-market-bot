@@ -265,6 +265,7 @@ for i, (_, row) in enumerate(gainers_df.iterrows(), start=1):
 
     message += (
         f"{i:>2}. {name} "
+        f"{row['close']:>7,.0f} "
         f"{row['change']:>6.2f}% "
         f"Rp{traded:>7.1f}B\n"
     )
