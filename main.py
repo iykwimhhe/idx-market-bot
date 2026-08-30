@@ -304,6 +304,7 @@ for symbol in stock_list_df["name"].dropna().unique():
                     "close": last_price,
                     "change": price_change,
                     "transaction_value": transaction_value
+                    "k": today_k
                 })
 
     except Exception as e:
@@ -314,8 +315,7 @@ for symbol in stock_list_df["name"].dropna().unique():
 # Sort by transaction value
 stoch_signals = sorted(
     stoch_signals,
-    key=lambda x: x["transaction_value"],
-    reverse=True
+    key=lambda x: x["k"]
 )
 
 # Maximum 20 stocks
