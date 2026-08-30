@@ -456,27 +456,18 @@ if not stoch_signals:
 
 else:
 
-    for i, stock in enumerate(
-        stoch_signals,
-        start=1
-    ):
+    for i, stock in enumerate(stoch_signals, start=1):
 
-        name = str(
-            stock["name"]
-        )[:6].ljust(6)
+        name = str(stock["name"])[:6]
 
-        traded = (
-            stock["traded"]
-            / 1_000_000_000
-        )
+        traded = stock["traded"] / 1_000_000_000
 
         message += (
-            f"{i:>2}. {name} "
-            f"Rp{stock['close']:>7,.0f} "
-            f"{stock['change']:>6.2f}% "
-            f"Rp{traded:>7.1f}B "
-            f"K{stock['k']:>4.1f} "
-            f"D{stock['d']:>4.1f}\n"
+            f"{i:>2}. {name:<6} "
+            f"Rp{stock['close']:,.0f} "
+            f"{stock['change']:+.2f}% "
+            f"{traded:.1f}B "
+            f"K{stock['k']:.1f} D{stock['d']:.1f}\n"
         )
 
 # ====================================
