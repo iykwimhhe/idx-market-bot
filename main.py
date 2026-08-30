@@ -227,7 +227,7 @@ else:
 
 print("Scanning Stochastic Golden Cross 10,5,5...")
 
-# Get IDX stock list + current TradingView data
+# Get IDX stocks + current TradingView data
 _, stock_list_df = (
     Query()
     .set_markets("indonesia")
@@ -241,7 +241,27 @@ _, stock_list_df = (
     .get_scanner_data()
 )
 
-# Store TradingView data for quick lookup
+# ====================================
+# FILTER FIRST
+# ====================================
+# Only scan stocks with at least
+# Rp250 million traded value.
+#
+# This prevents Yahoo Finance from
+# downloading data for illiquid stocks.
+
+stock_list_df = stock_list_df.dropna(
+    subset=["name", "Value.Traded"]
+)
+
+stock_list_df = stock_list_df[
+    stock_list_df["Value.Traded"] >= 250_000_000
+]
+
+# ====================================
+# STORE TRADINGVIEW DATA
+# ====================================
+
 tradingview_data = {}
 
 for _, row in stock_list_df.iterrows():
@@ -255,118 +275,172 @@ for _, row in stock_list_df.iterrows():
 stoch_signals = []
 
 # ====================================
-# SCAN EACH STOCK
+# PREPARE TICKERS
 # ====================================
 
-for symbol in stock_list_df["name"].dropna().unique():
+symbols = (
+    stock_list_df["name"]
+    .dropna()
+    .unique()
+    .tolist()
+)
 
-    ticker = symbol + ".JK"
+tickers = [
+    f"{symbol}.JK"
+    for symbol in symbols
+]
+
+# ====================================
+# DOWNLOAD IN BATCHES
+# ====================================
+
+BATCH_SIZE = 50
+
+for start in range(0, len(tickers), BATCH_SIZE):
+
+    batch_tickers = tickers[
+        start:start + BATCH_SIZE
+    ]
+
+    print(
+        f"Downloading Stochastic data "
+        f"{start + 1}-{min(start + BATCH_SIZE, len(tickers))} "
+        f"of {len(tickers)}..."
+    )
 
     try:
 
-        data = yf.download(
-            ticker,
+        batch_data = yf.download(
+            batch_tickers,
             period="3mo",
             interval="1d",
             progress=False,
-            auto_adjust=False
+            auto_adjust=False,
+            group_by="ticker",
+            threads=True
         )
-
-        if data.empty or len(data) < 20:
-            continue
-
-        # Handle yfinance MultiIndex
-        if isinstance(data.columns, pd.MultiIndex):
-
-            data.columns = (
-                data.columns
-                .get_level_values(0)
-            )
-
-        high = data["High"]
-        low = data["Low"]
-        close = data["Close"]
-
-        # ====================================
-        # STOCHASTIC 10,5,5
-        # ====================================
-
-        lowest_low = low.rolling(10).min()
-        highest_high = high.rolling(10).max()
-
-        raw_k = (
-            (close - lowest_low)
-            / (highest_high - lowest_low)
-        ) * 100
-
-        slow_k = raw_k.rolling(5).mean()
-        slow_d = slow_k.rolling(5).mean()
-
-        if len(slow_k.dropna()) < 2:
-            continue
-
-        today_k = float(slow_k.iloc[-1])
-        today_d = float(slow_d.iloc[-1])
-
-        # ====================================
-        # GOLDEN CROSS CONDITION
-        # ====================================
-
-        golden_cross = (
-            today_k > today_d
-            and today_k < 30
-        )
-
-        if not golden_cross:
-            continue
-
-        # ====================================
-        # TRADINGVIEW DATA
-        # ====================================
-
-        tv_data = tradingview_data.get(symbol)
-
-        if tv_data is None:
-            continue
-
-        transaction_value = float(
-            tv_data["value_traded"]
-        )
-
-        price = float(
-            tv_data["close"]
-        )
-
-        price_change = float(
-            tv_data["change"]
-        )
-
-        # ====================================
-        # MINIMUM TRANSACTION VALUE
-        # ====================================
-
-        if transaction_value < 250_000_000:
-            continue
-
-        # ====================================
-        # SAVE SIGNAL
-        # ====================================
-
-        stoch_signals.append({
-            "name": symbol,
-            "close": price,
-            "change": price_change,
-            "transaction_value": transaction_value,
-            "k": today_k
-        })
 
     except Exception as e:
 
         print(
-            f"Skipping {symbol}: {e}"
+            f"Batch download failed: {e}"
         )
 
         continue
+
+    # ====================================
+    # PROCESS EACH STOCK IN BATCH
+    # ====================================
+
+    for ticker in batch_tickers:
+
+        symbol = ticker.replace(".JK", "")
+
+        try:
+
+            # Get this ticker's OHLC data
+            data = batch_data[ticker].dropna(
+                how="all"
+            )
+
+            if data.empty or len(data) < 20:
+                continue
+
+            high = data["High"]
+            low = data["Low"]
+            close = data["Close"]
+
+            # ====================================
+            # STOCHASTIC 10,5,5
+            # ====================================
+
+            lowest_low = low.rolling(10).min()
+            highest_high = high.rolling(10).max()
+
+            raw_k = (
+                (close - lowest_low)
+                / (highest_high - lowest_low)
+            ) * 100
+
+            slow_k = raw_k.rolling(5).mean()
+            slow_d = slow_k.rolling(5).mean()
+
+            # Need today's AND yesterday's values
+            if len(slow_k.dropna()) < 2:
+                continue
+
+            today_k = float(
+                slow_k.iloc[-1]
+            )
+
+            today_d = float(
+                slow_d.iloc[-1]
+            )
+
+            yesterday_k = float(
+                slow_k.iloc[-2]
+            )
+
+            yesterday_d = float(
+                slow_d.iloc[-2]
+            )
+
+            # ====================================
+            # ACTUAL GOLDEN CROSS
+            # ====================================
+
+            golden_cross = (
+                yesterday_k <= yesterday_d
+                and today_k > today_d
+                and today_k < 30
+            )
+
+            if not golden_cross:
+                continue
+
+            # ====================================
+            # TRADINGVIEW DATA
+            # ====================================
+
+            tv_data = tradingview_data.get(
+                symbol
+            )
+
+            if tv_data is None:
+                continue
+
+            transaction_value = float(
+                tv_data["value_traded"]
+            )
+
+            price = float(
+                tv_data["close"]
+            )
+
+            price_change = float(
+                tv_data["change"]
+            )
+
+            # ====================================
+            # SAVE SIGNAL
+            # ====================================
+
+            stoch_signals.append({
+                "name": symbol,
+                "close": price,
+                "change": price_change,
+                "transaction_value": transaction_value,
+                "k": today_k,
+                "d": today_d
+            })
+
+        except Exception as e:
+
+            print(
+                f"Skipping {symbol}: {e}"
+            )
+
+            continue
 
 
 # ====================================
