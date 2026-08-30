@@ -386,6 +386,19 @@ for start in range(0, len(tickers), BATCH_SIZE):
             )
 
             # ====================================
+            # ARTO DIAGNOSTIC
+            # ====================================
+
+            if symbol == "ARTO":
+                print(
+                    f"ARTO STOCHASTIC 10,5,5 | "
+                    f"Yesterday K={yesterday_k:.2f} "
+                    f"D={yesterday_d:.2f} | "
+                    f"Today K={today_k:.2f} "
+                    f"D={today_d:.2f}"
+            )
+
+            # ====================================
             # ACTUAL GOLDEN CROSS
             # ====================================
 
@@ -421,6 +434,14 @@ for start in range(0, len(tickers), BATCH_SIZE):
                 tv_data["change"]
             )
 
+            if symbol == "ARTO":
+                print(
+                    f"ARTO TRADINGVIEW | "
+                    f"Price={price:,.0f} | "
+                    f"Change={price_change:+.2f}% | "
+                    f"Value={transaction_value:,.0f}"
+            )
+    
             # ====================================
             # SAVE SIGNAL
             # ====================================
