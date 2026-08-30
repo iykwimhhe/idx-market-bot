@@ -409,13 +409,6 @@ for start in range(0, len(tickers), BATCH_SIZE):
             yesterday_d = float(
                 slow_d.iloc[-2]
             )
-            
-if symbol == "BAIK":
-    print(
-        f"BAIK STOCH: "
-        f"Slow K={today_k:.2f}, "
-        f"Slow D={today_d:.2f}"
-    )
 
             # ====================================
             # ACTUAL GOLDEN CROSS
