@@ -193,33 +193,51 @@ _, value_df = (
 
     .get_scanner_data()
 
-)
-
-print("Getting full market breadth...")
-
-_, all_df = (
-    Query()
-    .set_markets("indonesia")
-    .select("name", "change")
-    .limit(1000)   # important
-    .get_scanner_data()
-)
-
-all_df = all_df.dropna()
-
-advancers = (all_df["change"] > 0).sum()
-decliners = (all_df["change"] < 0).sum()
-flat = (all_df["change"] == 0).sum()
-total = len(all_df)
-
-ratio = advancers / (decliners + 1)
-
-if ratio > 1.2:
-    sentiment = "🟢 Strong Bullish"
-elif ratio > 1.0:
-    sentiment = "🟡 Mixed"
-else:
-    sentiment = "🔴 Weak"
+    )
+    
+    print("Getting full market breadth...")
+    
+    _, all_df = (
+        Query()
+        .set_markets("indonesia")
+        .select("name", "change")
+        .limit(1000)
+        .get_scanner_data()
+    )
+    
+    all_df = all_df.dropna(subset=["change"])
+    
+    advancers = (all_df["change"] > 0).sum()
+    decliners = (all_df["change"] < 0).sum()
+    flat = (all_df["change"] == 0).sum()
+    total = len(all_df)
+    
+    # Advance / Decline Ratio
+    if decliners > 0:
+        ratio = advancers / decliners
+    else:
+        ratio = float("inf")
+    
+    # Market breadth sentiment
+    if ratio >= 2.0:
+        sentiment = "🟢 Strong Bullish"
+    elif ratio >= 1.2:
+        sentiment = "🟢 Bullish"
+    elif ratio >= 0.8:
+        sentiment = "🟡 Mixed"
+    elif ratio >= 0.5:
+        sentiment = "🔴 Bearish"
+    else:
+        sentiment = "🔴 Strong Bearish"
+    
+    message += (
+        f"MARKET BREADTH\n"
+        f"{sentiment}\n"
+        f"🟢 {advancers}  "
+        f"🔴 {decliners}  "
+        f"🟡 {flat}\n"
+        f"A/D Ratio: {ratio:.2f}\n\n"
+    )
 
 # ====================================
 # STOCHASTIC GOLDEN CROSS 10,5,5
