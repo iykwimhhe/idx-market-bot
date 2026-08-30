@@ -292,11 +292,9 @@ for symbol in stock_list_df["name"].dropna().unique():
         # --------------------------------
 
         golden_cross = (
-            yesterday_k <= yesterday_d
-            and today_k > today_d
+            today_k > today_d
             and today_k < 30
         )
-
         if golden_cross:
 
             last_price = float(close.iloc[-1])
