@@ -505,8 +505,8 @@ else:
         message += (
             f"{i:>2}. {name} "
             f"{stock['close']:>7,.0f} "
-            f"Rp{traded:>7.1f}B "
             f"{stock['change']:>6.2f}%\n"
+            f"Rp{traded:>7.1f}B "
         )
 
 # ====================================
