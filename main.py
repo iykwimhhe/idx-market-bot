@@ -592,10 +592,12 @@ else:
         )
 
         message += (
-            f"{i:>2}. {name} "
-            f"{stock['close']:>7,.0f} "
-            f"Rp{traded:>7.1f}B "
-            f"{stock['change']:>6.2f}%\n"
+            f"{i:>2}. "
+            f"{name:<5} "
+            f"Rp{stock['close']:,.0f} "
+            f"{stock['change']:+.2f}% "
+            f"{traded:.1f}B "
+            f"K{stock['k']:.2f}\n"
         )
 
 # ====================================
