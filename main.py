@@ -230,7 +230,7 @@ elif ratio >= 0.5:
 else:
     sentiment = "🔴 Strong Bearish"
 
-message += (
+breadth_message = (
     f"MARKET BREADTH\n"
     f"{sentiment}\n"
     f"🟢 {advancers}  "
