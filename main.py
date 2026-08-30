@@ -507,10 +507,6 @@ message += (
 )
 
 message += breadth_message
-    f"MARKET BREADTH\n"
-    f"{sentiment}\n"
-    f"🟢 {advancers}  🔴 {decliners}  🟡 {flat}\n\n"
-)
 
 message += "SECTORS\n"
 
