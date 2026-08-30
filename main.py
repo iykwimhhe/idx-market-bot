@@ -295,17 +295,29 @@ for symbol in stock_list_df["name"].dropna().unique():
             today_k > today_d
             and today_k < 30
         )
+        
         if golden_cross:
 
             last_price = float(close.iloc[-1])
 
+            # Calculate transaction value
+            transaction_value = (
+                last_price * float(data["Volume"].iloc[-1])
+            )
+
+            # Only keep stocks with > Rp250 million
+            if transaction_value > 250_000_000:
+
             stoch_signals.append({
                 "name": symbol,
                 "close": last_price,
-                "k": today_k,
-                "d": today_d
+                "change": (
+                    (last_price - float(close.iloc[-2]))
+                    / float(close.iloc[-2])
+                ) * 100,
+                "transaction_value": transaction_value
             })
-
+        
     except Exception as e:
         print(f"Skipping {symbol}: {e}")
         continue
@@ -313,7 +325,8 @@ for symbol in stock_list_df["name"].dropna().unique():
 # Sort strongest/lowest stochastic first
 stoch_signals = sorted(
     stoch_signals,
-    key=lambda x: x["k"]
+    key=lambda x: x["transaction_value"],
+    reverse=True
 )
 
 # Limit Telegram output
@@ -435,11 +448,16 @@ else:
 
         name = stock["name"][:6].ljust(6)
 
+        traded = (
+            stock["transaction_value"]
+            / 1_000_000_000
+        )
+
         message += (
             f"{i:>2}. {name} "
-            f"Rp{stock['close']:>7,.0f} "
-            f"K{stock['k']:>4.1f} "
-            f"D{stock['d']:>4.1f}\n"
+            f"{stock['close']:>7,.0f} "
+            f"Rp{traded:>7.1f}B "
+            f"{stock['change']:>6.2f}%\n"
         )
 
 # ====================================
