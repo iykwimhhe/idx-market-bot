@@ -386,17 +386,103 @@ for start in range(0, len(tickers), BATCH_SIZE):
             )
 
             # ====================================
-            # ARTO DIAGNOSTIC
+            # ARTO STOCHASTIC DIAGNOSTIC
             # ====================================
-
+            
             if symbol == "ARTO":
+            
+                # -------------------------------
+                # Variant A
+                # SMA 10 -> SMA 5 -> SMA 5
+                # -------------------------------
+            
+                raw_k_a = (
+                    (close - low.rolling(10).min())
+                    /
+                    (
+                        high.rolling(10).max()
+                        - low.rolling(10).min()
+                    )
+                ) * 100
+            
+                k_a = raw_k_a.rolling(5).mean()
+                d_a = k_a.rolling(5).mean()
+            
+                # -------------------------------
+                # Variant B
+                # SMA 10 -> EMA 5 -> SMA 5
+                # -------------------------------
+            
+                k_b = raw_k_a.ewm(
+                    span=5,
+                    adjust=False
+                ).mean()
+            
+                d_b = k_b.rolling(5).mean()
+            
+                # -------------------------------
+                # Variant C
+                # SMA 10 -> SMA 5 -> EMA 5
+                # -------------------------------
+            
+                k_c = raw_k_a.rolling(5).mean()
+            
+                d_c = k_c.ewm(
+                    span=5,
+                    adjust=False
+                ).mean()
+            
+                # -------------------------------
+                # Variant D
+                # EMA 5 -> EMA 5
+                # -------------------------------
+            
+                k_d = raw_k_a.ewm(
+                    span=5,
+                    adjust=False
+                ).mean()
+            
+                d_d = k_d.ewm(
+                    span=5,
+                    adjust=False
+                ).mean()
+            
+                print("")
+                print("====================================")
+                print("ARTO STOCHASTIC DIAGNOSTIC")
+                print("====================================")
+            
                 print(
-                    f"ARTO STOCHASTIC 10,5,5 | "
-                    f"Yesterday K={yesterday_k:.2f} "
-                    f"D={yesterday_d:.2f} | "
-                    f"Today K={today_k:.2f} "
-                    f"D={today_d:.2f}"
-            )
+                    f"HOTS TARGET       | "
+                    f"K=12.76 D=10.70"
+                )
+            
+                print(
+                    f"Variant A SMA/SMA | "
+                    f"K={float(k_a.iloc[-1]):.2f} "
+                    f"D={float(d_a.iloc[-1]):.2f}"
+                )
+            
+                print(
+                    f"Variant B EMA/SMA | "
+                    f"K={float(k_b.iloc[-1]):.2f} "
+                    f"D={float(d_b.iloc[-1]):.2f}"
+                )
+            
+                print(
+                    f"Variant C SMA/EMA | "
+                    f"K={float(k_c.iloc[-1]):.2f} "
+                    f"D={float(d_c.iloc[-1]):.2f}"
+                )
+            
+                print(
+                    f"Variant D EMA/EMA | "
+                    f"K={float(k_d.iloc[-1]):.2f} "
+                    f"D={float(d_d.iloc[-1]):.2f}"
+                )
+            
+                print("====================================")
+                print("")
 
             # ====================================
             # ACTUAL GOLDEN CROSS
