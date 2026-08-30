@@ -447,7 +447,7 @@ for i, (_, row) in enumerate(value_df.iterrows(), start=1):
 
 message += (
     "\n⚡ STOCHASTIC GOLDEN CROSS 10,5,5\n"
-    "━━━━━━━━━━━━━━━━\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 )
 
 if not stoch_signals:
@@ -463,11 +463,13 @@ else:
         traded = stock["traded"] / 1_000_000_000
 
         message += (
-            f"{i:>2}. {name:<6} "
-            f"Rp{stock['close']:,.0f} "
-            f"{stock['change']:+.2f}% "
-            f"{traded:.1f}B "
-            f"K{stock['k']:.1f} D{stock['d']:.1f}\n"
+            f"{i:>2}. "
+            f"{name:<6} "
+            f"Rp{stock['close']:>7,.0f} "
+            f"{stock['change']:>7.2f}% "
+            f"{traded:>5.1f}B "
+            f"K{stock['k']:>4.1f} "
+            f"D{stock['d']:>4.1f}\n"
         )
 
 # ====================================
