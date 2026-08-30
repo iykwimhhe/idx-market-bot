@@ -361,6 +361,9 @@ for start in range(0, len(tickers), BATCH_SIZE):
                 how="all"
             )
 
+            # Remove zero-volume / non-trading days
+            data = data[data["Volume"] > 0].copy()
+
             if data.empty or len(data) < 20:
                 continue
 
