@@ -227,7 +227,7 @@ else:
 
 print("Scanning Stochastic Golden Cross 10,5,5...")
 
-# Get IDX stocks and TradingView market data
+# Get IDX stock list + current TradingView data
 _, stock_list_df = (
     Query()
     .set_markets("indonesia")
@@ -241,16 +241,26 @@ _, stock_list_df = (
     .get_scanner_data()
 )
 
-stoch_signals = []
+# Store TradingView data for quick lookup
+tradingview_data = {}
 
 for _, row in stock_list_df.iterrows():
 
-    symbol = row["name"]
+    tradingview_data[row["name"]] = {
+        "close": row["close"],
+        "change": row["change"],
+        "value_traded": row["Value.Traded"]
+    }
 
-    if not symbol or str(symbol) == "nan":
-        continue
+stoch_signals = []
 
-    ticker = f"{symbol}.JK"
+# ====================================
+# SCAN EACH STOCK
+# ====================================
+
+for symbol in stock_list_df["name"].dropna().unique():
+
+    ticker = symbol + ".JK"
 
     try:
 
@@ -262,12 +272,16 @@ for _, row in stock_list_df.iterrows():
             auto_adjust=False
         )
 
-        if data.empty or len(data) < 30:
+        if data.empty or len(data) < 20:
             continue
 
-        # Handle yfinance MultiIndex columns
+        # Handle yfinance MultiIndex
         if isinstance(data.columns, pd.MultiIndex):
-            data.columns = data.columns.get_level_values(0)
+
+            data.columns = (
+                data.columns
+                .get_level_values(0)
+            )
 
         high = data["High"]
         low = data["Low"]
@@ -285,25 +299,21 @@ for _, row in stock_list_df.iterrows():
             / (highest_high - lowest_low)
         ) * 100
 
-        k = raw_k.rolling(5).mean()
-        d = k.rolling(5).mean()
+        slow_k = raw_k.rolling(5).mean()
+        slow_d = slow_k.rolling(5).mean()
 
-        if len(k.dropna()) < 2:
+        if len(slow_k.dropna()) < 2:
             continue
 
-        yesterday_k = float(k.iloc[-2])
-        today_k = float(k.iloc[-1])
-
-        yesterday_d = float(d.iloc[-2])
-        today_d = float(d.iloc[-1])
+        today_k = float(slow_k.iloc[-1])
+        today_d = float(slow_d.iloc[-1])
 
         # ====================================
-        # GOLDEN CROSS + OVERSOLD FILTER
+        # GOLDEN CROSS CONDITION
         # ====================================
 
         golden_cross = (
-            yesterday_k <= yesterday_d
-            and today_k > today_d
+            today_k > today_d
             and today_k < 30
         )
 
@@ -311,35 +321,64 @@ for _, row in stock_list_df.iterrows():
             continue
 
         # ====================================
+        # TRADINGVIEW DATA
+        # ====================================
+
+        tv_data = tradingview_data.get(symbol)
+
+        if tv_data is None:
+            continue
+
+        transaction_value = float(
+            tv_data["value_traded"]
+        )
+
+        price = float(
+            tv_data["close"]
+        )
+
+        price_change = float(
+            tv_data["change"]
+        )
+
+        # ====================================
+        # MINIMUM TRANSACTION VALUE
+        # ====================================
+
+        if transaction_value < 250_000_000:
+            continue
+
+        # ====================================
         # SAVE SIGNAL
         # ====================================
 
-        last_price = float(row["close"])
-        change = float(row["change"])
-        traded = float(row["Value.Traded"])
-
         stoch_signals.append({
             "name": symbol,
-            "close": last_price,
-            "change": change,
-            "traded": traded,
-            "k": today_k,
-            "d": today_d
+            "close": price,
+            "change": price_change,
+            "transaction_value": transaction_value,
+            "k": today_k
         })
 
     except Exception as e:
 
-        print(f"Skipping {symbol}: {e}")
+        print(
+            f"Skipping {symbol}: {e}"
+        )
+
         continue
 
 
-# Sort by lowest Stochastic K first
+# ====================================
+# SORT BY SLOW K — LOWEST FIRST
+# ====================================
+
 stoch_signals = sorted(
     stoch_signals,
     key=lambda x: x["k"]
 )
 
-# Limit output to 20 stocks
+# Maximum 20 stocks
 stoch_signals = stoch_signals[:20]
 
 # ====================================
@@ -445,10 +484,8 @@ for i, (_, row) in enumerate(value_df.iterrows(), start=1):
 # STOCHASTIC GOLDEN CROSS MESSAGE
 # ====================================
 
-message += (
-    "\n⚡ STOCHASTIC GOLDEN CROSS 10,5,5\n"
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-)
+message += "\n⚡ STOCHASTIC GOLDEN CROSS 10,5,5\n"
+message += "━━━━━━━━━━━━━━━━\n"
 
 if not stoch_signals:
 
@@ -457,21 +494,21 @@ if not stoch_signals:
 else:
 
     for i, stock in enumerate(stoch_signals, start=1):
-    
-        name = str(stock["name"])[:5]
-    
-        traded = stock["traded"] / 1_000_000_000
-    
-        message += (
-            f"{i:>2}. "
-            f"{name:<5} "
-            f"Rp{stock['close']:<6,.0f} "
-            f"{stock['change']:+.2f}% "
-            f"{traded:.1f}B "
-            f"K{stock['k']:.1f} "
-            f"D{stock['d']:.1f}\n"
+
+        name = stock["name"][:6].ljust(6)
+
+        traded = (
+            stock["transaction_value"]
+            / 1_000_000_000
         )
-    
+
+        message += (
+            f"{i:>2}. {name} "
+            f"{stock['close']:>7,.0f} "
+            f"Rp{traded:>7.1f}B "
+            f"{stock['change']:>6.2f}%\n"
+        )
+
 # ====================================
 # PRINT MESSAGE
 # ====================================
