@@ -227,6 +227,7 @@ else:
 
 print("Scanning Stochastic Golden Cross 10,5,5...")
 
+# Get IDX stock list + current TradingView data
 _, stock_list_df = (
     Query()
     .set_markets("indonesia")
@@ -239,6 +240,8 @@ _, stock_list_df = (
     .limit(1000)
     .get_scanner_data()
 )
+
+# Store TradingView data for quick lookup
 tradingview_data = {}
 
 for _, row in stock_list_df.iterrows():
@@ -251,11 +254,16 @@ for _, row in stock_list_df.iterrows():
 
 stoch_signals = []
 
+# ====================================
+# SCAN EACH STOCK
+# ====================================
+
 for symbol in stock_list_df["name"].dropna().unique():
 
     ticker = symbol + ".JK"
 
     try:
+
         data = yf.download(
             ticker,
             period="3mo",
@@ -267,12 +275,21 @@ for symbol in stock_list_df["name"].dropna().unique():
         if data.empty or len(data) < 20:
             continue
 
+        # Handle yfinance MultiIndex
         if isinstance(data.columns, pd.MultiIndex):
-            data.columns = data.columns.get_level_values(0)
+
+            data.columns = (
+                data.columns
+                .get_level_values(0)
+            )
 
         high = data["High"]
         low = data["Low"]
         close = data["Close"]
+
+        # ====================================
+        # STOCHASTIC 10,5,5
+        # ====================================
 
         lowest_low = low.rolling(10).min()
         highest_high = high.rolling(10).max()
@@ -282,56 +299,80 @@ for symbol in stock_list_df["name"].dropna().unique():
             / (highest_high - lowest_low)
         ) * 100
 
-        k = raw_k.rolling(5).mean()
-        d = k.rolling(5).mean()
+        slow_k = raw_k.rolling(5).mean()
+        slow_d = slow_k.rolling(5).mean()
 
-        if len(k.dropna()) < 2:
+        if len(slow_k.dropna()) < 2:
             continue
 
-        today_k = float(k.iloc[-1])
-        today_d = float(d.iloc[-1])
+        today_k = float(slow_k.iloc[-1])
+        today_d = float(slow_d.iloc[-1])
 
-        # Golden Cross condition
+        # ====================================
+        # GOLDEN CROSS CONDITION
+        # ====================================
+
         golden_cross = (
             today_k > today_d
             and today_k < 30
         )
 
-        if golden_cross:
+        if not golden_cross:
+            continue
 
-        last_price = float(close.iloc[-1])
-        
-        # Get transaction value and price change from TradingView
+        # ====================================
+        # TRADINGVIEW DATA
+        # ====================================
+
         tv_data = tradingview_data.get(symbol)
-        
+
         if tv_data is None:
             continue
-        
+
         transaction_value = float(
             tv_data["value_traded"]
         )
-        
+
+        price = float(
+            tv_data["close"]
+        )
+
         price_change = float(
             tv_data["change"]
         )
-        
-        # Minimum transaction value: Rp250 million
-        if transaction_value >= 250_000_000:
-        
-            stoch_signals.append({
-                "name": symbol,
-                "close": last_price,
-                "change": price_change,
-                "transaction_value": transaction_value,
-                "k": today_k
-            })
+
+        # ====================================
+        # MINIMUM TRANSACTION VALUE
+        # ====================================
+
+        if transaction_value < 250_000_000:
+            continue
+
+        # ====================================
+        # SAVE SIGNAL
+        # ====================================
+
+        stoch_signals.append({
+            "name": symbol,
+            "close": price,
+            "change": price_change,
+            "transaction_value": transaction_value,
+            "k": today_k
+        })
 
     except Exception as e:
 
-        print(f"Skipping {symbol}: {e}")
+        print(
+            f"Skipping {symbol}: {e}"
+        )
+
         continue
 
-# Sort by transaction value
+
+# ====================================
+# SORT BY SLOW K — LOWEST FIRST
+# ====================================
+
 stoch_signals = sorted(
     stoch_signals,
     key=lambda x: x["k"]
