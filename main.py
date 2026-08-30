@@ -299,13 +299,13 @@ for symbol in stock_list_df["name"].dropna().unique():
                     / previous_close
                 ) * 100
 
-                stoch_signals.append({
-                    "name": symbol,
-                    "close": last_price,
-                    "change": price_change,
-                    "transaction_value": transaction_value
-                    "k": today_k
-                })
+            stoch_signals.append({
+                "name": symbol,
+                "close": last_price,
+                "change": price_change,
+                "transaction_value": transaction_value,
+                "k": today_k
+            })
 
     except Exception as e:
 
