@@ -222,115 +222,33 @@ else:
     sentiment = "🔴 Weak"
 
 # ====================================
-# STOCHASTIC GOLDEN CROSS 10,5,5
+# STOCHASTIC GOLDEN CROSS MESSAGE
 # ====================================
 
-print("Scanning Stochastic Golden Cross 10,5,5...")
+message += "\n⚡ STOCHASTIC GOLDEN CROSS 10,5,5\n"
+message += "━━━━━━━━━━━━━━━━\n"
 
-# Get IDX stock symbols from TradingView
-_, stock_list_df = (
-    Query()
-    .set_markets("indonesia")
-    .select("name")
-    .limit(1000)
-    .get_scanner_data()
-)
+if not stoch_signals:
 
-stoch_signals = []
+    message += "No signal today.\n"
 
-for symbol in stock_list_df["name"].dropna().unique():
+else:
 
-    ticker = symbol + ".JK"
+    for i, stock in enumerate(stoch_signals, start=1):
 
-    try:
-        data = yf.download(
-            ticker,
-            period="3mo",
-            interval="1d",
-            progress=False,
-            auto_adjust=False
+        name = stock["name"][:6].ljust(6)
+
+        traded = (
+            stock["transaction_value"]
+            / 1_000_000_000
         )
 
-        if data.empty or len(data) < 20:
-            continue
-
-        # Handle yfinance multi-level columns
-        if isinstance(data.columns, pd.MultiIndex):
-            data.columns = data.columns.get_level_values(0)
-
-        high = data["High"]
-        low = data["Low"]
-        close = data["Close"]
-
-        # --------------------------------
-        # STOCHASTIC 10,5,5
-        # --------------------------------
-
-        lowest_low = low.rolling(10).min()
-        highest_high = high.rolling(10).max()
-
-        raw_k = (
-            (close - lowest_low)
-            / (highest_high - lowest_low)
-        ) * 100
-
-        k = raw_k.rolling(5).mean()
-        d = k.rolling(5).mean()
-
-        # Need at least two valid values
-        if len(k.dropna()) < 2:
-            continue
-
-        yesterday_k = float(k.iloc[-2])
-        today_k = float(k.iloc[-1])
-
-        yesterday_d = float(d.iloc[-2])
-        today_d = float(d.iloc[-1])
-
-        # --------------------------------
-        # GOLDEN CROSS + OVERSOLD FILTER
-        # --------------------------------
-
-        golden_cross = (
-            today_k > today_d
-            and today_k < 30
+        message += (
+            f"{i:>2}. {name} "
+            f"{stock['close']:>7,.0f} "
+            f"Rp{traded:>7.1f}B "
+            f"{stock['change']:>6.2f}%\n"
         )
-        
-        if golden_cross:
-
-            last_price = float(close.iloc[-1])
-
-            # Calculate transaction value
-            transaction_value = (
-                last_price * float(data["Volume"].iloc[-1])
-            )
-
-            # Only keep stocks with > Rp250 million
-            if transaction_value > 250_000_000:
-
-            stoch_signals.append({
-                "name": symbol,
-                "close": last_price,
-                "change": (
-                    (last_price - float(close.iloc[-2]))
-                    / float(close.iloc[-2])
-                ) * 100,
-                "transaction_value": transaction_value
-            })
-        
-    except Exception as e:
-        print(f"Skipping {symbol}: {e}")
-        continue
-
-# Sort strongest/lowest stochastic first
-stoch_signals = sorted(
-    stoch_signals,
-    key=lambda x: x["transaction_value"],
-    reverse=True
-)
-
-# Limit Telegram output
-stoch_signals = stoch_signals[:20]
 
 # ====================================
 # BUILD MESSAGE
