@@ -3,9 +3,9 @@ import pandas as pd
 
 symbol = "BAIK.JK"
 
-print("=" * 70)
-print(f"STOCHASTIC TEST: {symbol}")
-print("=" * 70)
+print("=" * 75)
+print(f"STOCHASTIC METHOD COMPARISON: {symbol}")
+print("=" * 75)
 
 data = yf.download(
     symbol,
@@ -27,12 +27,17 @@ for col in ["High", "Low", "Close", "Volume"]:
 
 data = data.dropna(subset=["High", "Low", "Close"])
 
+# ============================================================
+# REMOVE ZERO-VOLUME DAYS
+# ============================================================
+
+trading_data = data[data["Volume"] > 0].copy()
 
 # ============================================================
-# STOCHASTIC FUNCTION
+# BASE STOCHASTIC
 # ============================================================
 
-def calculate_stochastic(df):
+def raw_stochastic(df):
 
     high = df["High"]
     low = df["Low"]
@@ -46,138 +51,201 @@ def calculate_stochastic(df):
         / (highest_high - lowest_low)
     ) * 100
 
-    slow_k = raw_k.rolling(5).mean()
-    slow_d = slow_k.rolling(5).mean()
-
-    return slow_k, slow_d
+    return raw_k
 
 
 # ============================================================
 # METHOD A
 # CURRENT BOT
+# Raw K -> SMA 5 -> SMA 5
 # ============================================================
 
-slow_k_a, slow_d_a = calculate_stochastic(data)
+raw_a = raw_stochastic(data)
 
-print("\n" + "=" * 70)
-print("METHOD A — CURRENT BOT")
-print("All Yahoo rows included")
-print("=" * 70)
-
-print(f"Slow K = {float(slow_k_a.iloc[-1]):.2f}")
-print(f"Slow D = {float(slow_d_a.iloc[-1]):.2f}")
-print(
-    f"K > D  = "
-    f"{float(slow_k_a.iloc[-1]) > float(slow_d_a.iloc[-1])}"
-)
+slow_k_a = raw_a.rolling(5).mean()
+slow_d_a = slow_k_a.rolling(5).mean()
 
 
 # ============================================================
 # METHOD B
-# REMOVE ZERO-VOLUME DAYS
+# REMOVE ZERO-VOLUME
+# Raw K -> SMA 5 -> SMA 5
 # ============================================================
 
-trading_data = data[data["Volume"] > 0].copy()
+raw_b = raw_stochastic(trading_data)
 
-slow_k_b, slow_d_b = calculate_stochastic(trading_data)
-
-print("\n" + "=" * 70)
-print("METHOD B — REMOVE ZERO-VOLUME DAYS")
-print("=" * 70)
-
-print(f"Trading rows = {len(trading_data)}")
-print(f"Slow K = {float(slow_k_b.iloc[-1]):.2f}")
-print(f"Slow D = {float(slow_d_b.iloc[-1]):.2f}")
-print(
-    f"K > D  = "
-    f"{float(slow_k_b.iloc[-1]) > float(slow_d_b.iloc[-1])}"
-)
+slow_k_b = raw_b.rolling(5).mean()
+slow_d_b = slow_k_b.rolling(5).mean()
 
 
 # ============================================================
 # METHOD C
-# REPLACE ZERO-VOLUME OHLC WITH PREVIOUS TRADING DAY
+# EMA -> EMA
 # ============================================================
 
-filled_data = data.copy()
+slow_k_c = raw_b.ewm(
+    span=5,
+    adjust=False
+).mean()
 
-zero_volume = filled_data["Volume"] == 0
-
-# Copy previous available OHLC forward
-for column in ["Open", "High", "Low", "Close"]:
-
-    if column in filled_data.columns:
-
-        filled_data.loc[zero_volume, column] = (
-            filled_data[column]
-            .shift(1)
-            .loc[zero_volume]
-        )
-
-# Fill multiple consecutive zero-volume days
-filled_data[["Open", "High", "Low", "Close"]] = (
-    filled_data[["Open", "High", "Low", "Close"]]
-    .ffill()
-)
-
-slow_k_c, slow_d_c = calculate_stochastic(filled_data)
-
-print("\n" + "=" * 70)
-print("METHOD C — REPLACE ZERO-VOLUME DAYS")
-print("Use previous available OHLC")
-print("=" * 70)
-
-print(f"Rows = {len(filled_data)}")
-print(f"Slow K = {float(slow_k_c.iloc[-1]):.2f}")
-print(f"Slow D = {float(slow_d_c.iloc[-1]):.2f}")
-print(
-    f"K > D  = "
-    f"{float(slow_k_c.iloc[-1]) > float(slow_d_c.iloc[-1])}"
-)
+slow_d_c = slow_k_c.ewm(
+    span=5,
+    adjust=False
+).mean()
 
 
 # ============================================================
-# SHOW BAIK'S ZERO-VOLUME DAYS
+# METHOD D
+# SMA -> EMA
 # ============================================================
 
-print("\n" + "=" * 70)
-print("ZERO-VOLUME DAYS")
-print("=" * 70)
+slow_k_d = raw_b.rolling(5).mean()
 
-print(
-    data[data["Volume"] == 0][
-        ["Open", "High", "Low", "Close", "Volume"]
-    ].tail(10)
-)
+slow_d_d = slow_k_d.ewm(
+    span=5,
+    adjust=False
+).mean()
 
 
 # ============================================================
-# FINAL COMPARISON
+# METHOD E
+# EMA -> SMA
 # ============================================================
 
-print("\n" + "=" * 70)
-print("FINAL COMPARISON")
-print("=" * 70)
+slow_k_e = raw_b.ewm(
+    span=5,
+    adjust=False
+).mean()
 
+slow_d_e = slow_k_e.rolling(5).mean()
+
+
+# ============================================================
+# METHOD F
+# COMMON STOCHASTIC FULL VARIANT
+#
+# First smooth raw %K by 5
+# Then calculate %D using another SMA(5)
+# ============================================================
+
+k_f = raw_b.rolling(5).mean()
+d_f = k_f.rolling(5).mean()
+
+
+# ============================================================
+# PRINT RESULTS
+# ============================================================
+
+print("\n" + "=" * 75)
+print("RESULTS")
+print("=" * 75)
+
+print("\nMirae HOTS reference:")
+print("K = 5.24")
+print("D = 7.61")
+
+
+print("\nMethod A — Current bot")
 print(
-    f"Method A - Current:       "
-    f"K={float(slow_k_a.iloc[-1]):.2f}, "
-    f"D={float(slow_d_a.iloc[-1]):.2f}"
+    f"K = {float(slow_k_a.iloc[-1]):.2f}, "
+    f"D = {float(slow_d_a.iloc[-1]):.2f}, "
+    f"K > D = {float(slow_k_a.iloc[-1]) > float(slow_d_a.iloc[-1])}"
 )
 
+
+print("\nMethod B — Remove zero-volume")
 print(
-    f"Method B - Remove zero:   "
-    f"K={float(slow_k_b.iloc[-1]):.2f}, "
-    f"D={float(slow_d_b.iloc[-1]):.2f}"
+    f"K = {float(slow_k_b.iloc[-1]):.2f}, "
+    f"D = {float(slow_d_b.iloc[-1]):.2f}, "
+    f"K > D = {float(slow_k_b.iloc[-1]) > float(slow_d_b.iloc[-1])}"
 )
 
+
+print("\nMethod C — EMA → EMA")
 print(
-    f"Method C - Previous OHLC:  "
-    f"K={float(slow_k_c.iloc[-1]):.2f}, "
-    f"D={float(slow_d_c.iloc[-1]):.2f}"
+    f"K = {float(slow_k_c.iloc[-1]):.2f}, "
+    f"D = {float(slow_d_c.iloc[-1]):.2f}, "
+    f"K > D = {float(slow_k_c.iloc[-1]) > float(slow_d_c.iloc[-1])}"
 )
 
+
+print("\nMethod D — SMA → EMA")
 print(
-    "Mirae HOTS:               "
-    "K=5.24, D=7.61"
+    f"K = {float(slow_k_d.iloc[-1]):.2f}, "
+    f"D = {float(slow_d_d.iloc[-1]):.2f}, "
+    f"K > D = {float(slow_k_d.iloc[-1]) > float(slow_d_d.iloc[-1])}"
 )
+
+
+print("\nMethod E — EMA → SMA")
+print(
+    f"K = {float(slow_k_e.iloc[-1]):.2f}, "
+    f"D = {float(slow_d_e.iloc[-1]):.2f}, "
+    f"K > D = {float(slow_k_e.iloc[-1]) > float(slow_d_e.iloc[-1])}"
+)
+
+
+print("\nMethod F — Stochastic Full / SMA")
+print(
+    f"K = {float(k_f.iloc[-1]):.2f}, "
+    f"D = {float(d_f.iloc[-1]):.2f}, "
+    f"K > D = {float(k_f.iloc[-1]) > float(d_f.iloc[-1])}"
+)
+
+
+# ============================================================
+# LAST 10 VALUES
+# ============================================================
+
+print("\n" + "=" * 75)
+print("LAST 10 VALUES — ZERO-VOLUME DAYS REMOVED")
+print("=" * 75)
+
+comparison = pd.DataFrame({
+    "Close": trading_data["Close"],
+    "Raw K": raw_b,
+    "SMA K": slow_k_b,
+    "SMA D": slow_d_b,
+    "EMA K": slow_k_c,
+    "EMA D": slow_d_c
+})
+
+print(comparison.tail(10).round(2))
+
+
+# ============================================================
+# DISTANCE FROM MIRAE
+# ============================================================
+
+mirae_k = 5.24
+mirae_d = 7.61
+
+print("\n" + "=" * 75)
+print("DISTANCE FROM MIRAE HOTS")
+print("=" * 75)
+
+methods = {
+    "A Current": (slow_k_a, slow_d_a),
+    "B No Zero": (slow_k_b, slow_d_b),
+    "C EMA/EMA": (slow_k_c, slow_d_c),
+    "D SMA/EMA": (slow_k_d, slow_d_d),
+    "E EMA/SMA": (slow_k_e, slow_d_e),
+    "F Full SMA": (k_f, d_f),
+}
+
+for name, (k, d) in methods.items():
+
+    k_value = float(k.iloc[-1])
+    d_value = float(d.iloc[-1])
+
+    distance = (
+        abs(k_value - mirae_k)
+        + abs(d_value - mirae_d)
+    )
+
+    print(
+        f"{name:<15} "
+        f"K={k_value:>6.2f} "
+        f"D={d_value:>6.2f} "
+        f"Distance={distance:>6.2f}"
+    )
