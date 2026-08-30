@@ -506,7 +506,7 @@ message += (
     f"IHSG : {today_close:,.2f} ({ihsg_change:+.2f}%)\n\n"
 )
 
-message += (
+message += breadth_message
     f"MARKET BREADTH\n"
     f"{sentiment}\n"
     f"🟢 {advancers}  🔴 {decliners}  🟡 {flat}\n\n"
