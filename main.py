@@ -230,10 +230,24 @@ print("Scanning Stochastic Golden Cross 10,5,5...")
 _, stock_list_df = (
     Query()
     .set_markets("indonesia")
-    .select("name")
+    .select(
+        "name",
+        "close",
+        "change",
+        "Value.Traded"
+    )
     .limit(1000)
     .get_scanner_data()
 )
+tradingview_data = {}
+
+for _, row in stock_list_df.iterrows():
+
+    tradingview_data[row["name"]] = {
+        "close": row["close"],
+        "change": row["change"],
+        "value_traded": row["Value.Traded"]
+    }
 
 stoch_signals = []
 
@@ -285,20 +299,25 @@ for symbol in stock_list_df["name"].dropna().unique():
 
         if golden_cross:
 
-            last_price = float(close.iloc[-1])
-            previous_close = float(close.iloc[-2])
-            volume = float(data["Volume"].iloc[-1])
-
-            transaction_value = last_price * volume
-
-            # Minimum transaction value: Rp250 million
-            if transaction_value > 250_000_000:
-
-                price_change = (
-                    (last_price - previous_close)
-                    / previous_close
-                ) * 100
-
+        last_price = float(close.iloc[-1])
+        
+        # Get transaction value and price change from TradingView
+        tv_data = tradingview_data.get(symbol)
+        
+        if tv_data is None:
+            continue
+        
+        transaction_value = float(
+            tv_data["value_traded"]
+        )
+        
+        price_change = float(
+            tv_data["change"]
+        )
+        
+        # Minimum transaction value: Rp250 million
+        if transaction_value >= 250_000_000:
+        
             stoch_signals.append({
                 "name": symbol,
                 "close": last_price,
