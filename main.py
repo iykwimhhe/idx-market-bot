@@ -414,6 +414,12 @@ for start in range(0, len(tickers), BATCH_SIZE):
             # ACTUAL GOLDEN CROSS
             # ====================================
 
+if symbol == "BAIK":
+    print(
+        f"BAIK STOCH: "
+        f"Slow K={today_k:.2f}, "
+        f"Slow D={today_d:.2f}"
+    )
             golden_cross = (
                 yesterday_k <= yesterday_d
                 and today_k > today_d
