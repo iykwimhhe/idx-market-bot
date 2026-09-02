@@ -420,7 +420,7 @@ for start in range(0, len(tickers), BATCH_SIZE):
             golden_cross = (
                 yesterday_k <= yesterday_d
                 and today_k > today_d
-                and today_k < 30
+                and today_k <= 35
             )
 
             if not golden_cross:
