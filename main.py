@@ -42,13 +42,12 @@ today_date = date.today()
 
 indo_holidays = holidays.ID()
 
+if today_date.weekday() >= 5:
+    print("Weekend — market is closed.")
+    exit()
+
 if today_date in indo_holidays:
-
-    print(
-        f"Today is holiday: "
-        f"{indo_holidays[today_date]}"
-    )
-
+    print(f"Today is holiday: {indo_holidays[today_date]}")
     exit()
 
 # ====================================
