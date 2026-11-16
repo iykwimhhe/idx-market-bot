@@ -1,29 +1,53 @@
-from tradingview_screener import Query
+import yfinance as yf
+import pandas as pd
 
-print("Getting Indonesia market data...")
-print("=" * 50)
+test_tickers = [
+    "TMPO.JK",
+    "BBCA.JK",
+    "BMRI.JK",
+    "BREN.JK",
+    "BBRI.JK"
+]
 
-_, df = (
-    Query()
-    .set_markets("indonesia")
-    .select(
-        "name",
-        "close",
-        "change",
-        "volume",
-        "Value.Traded"
-    )
-    .limit(1000)
-    .get_scanner_data()
-)
+print("Testing latest actual trading date...")
+print("=" * 60)
 
-print(f"Total stocks returned: {len(df)}")
-print()
+for ticker in test_tickers:
 
-tmpo = df[df["name"] == "TMPO"]
+    print(f"\nChecking {ticker}...")
 
-if tmpo.empty:
-    print("TMPO was NOT returned by TradingView.")
-else:
-    print("TMPO FOUND:")
-    print(tmpo.to_string(index=False))
+    try:
+        data = yf.download(
+            ticker,
+            period="10d",
+            interval="1d",
+            auto_adjust=False,
+            progress=False
+        )
+
+        if data.empty:
+            print("  No Yahoo data found.")
+            continue
+
+        # Handle possible multi-level columns
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
+
+        # Remove non-trading days
+        data = data[data["Volume"] > 0].copy()
+
+        if data.empty:
+            print("  No trading days with volume found.")
+            continue
+
+        latest = data.iloc[-1]
+
+        print(f"  Latest trading date : {data.index[-1].date()}")
+        print(f"  Close               : {latest['Close']}")
+        print(f"  Volume              : {latest['Volume']:,}")
+
+    except Exception as e:
+        print(f"  ERROR: {e}")
+
+print("\n" + "=" * 60)
+print("Test complete.")
