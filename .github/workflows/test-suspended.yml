@@ -16,9 +16,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - name: Install yfinance
         run: |
-          pip install yfinance pandas
+          python -m pip install --upgrade pip
+          python -m pip install yfinance pandas
+
+      - name: Verify yfinance
+        run: |
+          python -c "import yfinance; print('yfinance installed:', yfinance.__version__)"
 
       - name: Run test
         run: python test_suspended.py
