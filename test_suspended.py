@@ -1,6 +1,6 @@
 from tradingview_screener import Query
 
-print("Testing TMPO TradingView data...")
+print("Getting Indonesia market data...")
 print("=" * 50)
 
 _, df = (
@@ -13,12 +13,17 @@ _, df = (
         "volume",
         "Value.Traded"
     )
-    .where(
-        "name",
-        "equal",
-        "TMPO"
-    )
+    .limit(1000)
     .get_scanner_data()
 )
 
-print(df)
+print(f"Total stocks returned: {len(df)}")
+print()
+
+tmpo = df[df["name"] == "TMPO"]
+
+if tmpo.empty:
+    print("TMPO was NOT returned by TradingView.")
+else:
+    print("TMPO FOUND:")
+    print(tmpo.to_string(index=False))
