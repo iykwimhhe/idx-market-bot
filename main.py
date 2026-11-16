@@ -35,6 +35,79 @@ def send_telegram(message):
     print(response.text)
 
 # ====================================
+# VALIDATE ACTIVE STOCKS
+# ====================================
+
+def get_active_tickers(tickers, market_date):
+
+    if not tickers:
+        return None
+
+    yahoo_tickers = [
+        f"{ticker}.JK"
+        for ticker in tickers
+    ]
+
+    try:
+
+        data = yf.download(
+            yahoo_tickers,
+            period="5d",
+            interval="1d",
+            auto_adjust=False,
+            progress=False,
+            group_by="ticker",
+            threads=True
+        )
+
+        active_tickers = set()
+
+        for ticker in tickers:
+
+            yahoo_ticker = f"{ticker}.JK"
+
+            try:
+
+                if len(tickers) == 1:
+                    ticker_data = data.copy()
+                else:
+                    ticker_data = data[yahoo_ticker].copy()
+
+                if ticker_data.empty:
+                    continue
+
+                ticker_data = ticker_data.dropna(
+                    subset=["Close"]
+                )
+
+                ticker_data = ticker_data[
+                    ticker_data["Volume"] > 0
+                ]
+
+                if ticker_data.empty:
+                    continue
+
+                latest_date = (
+                    ticker_data.index[-1].date()
+                )
+
+                if latest_date == market_date:
+                    active_tickers.add(ticker)
+
+            except Exception:
+                continue
+
+        return active_tickers
+
+    except Exception as e:
+
+        print(
+            f"Yahoo active stock validation failed: {e}"
+        )
+
+        return None
+
+# ====================================
 # INDONESIAN HOLIDAY CHECK
 # ====================================
 
@@ -127,8 +200,8 @@ _, gainers_df = (
         ascending=False
     )
 
-    .limit(20)
-
+    .limit(50)
+    
     .get_scanner_data()
 
 )
@@ -157,7 +230,7 @@ _, losers_df = (
         ascending=True
     )
 
-    .limit(20)
+    .limit(50)
 
     .get_scanner_data()
 
@@ -188,10 +261,62 @@ _, value_df = (
         ascending=False
     )
 
-    .limit(20)
+    .limit(50)
 
     .get_scanner_data()
 
+    )
+
+# ====================================
+# REMOVE SUSPENDED / STALE STOCKS
+# ====================================
+
+candidate_tickers = set()
+
+candidate_tickers.update(
+    gainers_df["name"].dropna().tolist()
+)
+
+candidate_tickers.update(
+    losers_df["name"].dropna().tolist()
+)
+
+candidate_tickers.update(
+    value_df["name"].dropna().tolist()
+)
+
+market_date = hist.index[-1].date()
+
+active_tickers = get_active_tickers(
+    candidate_tickers,
+    market_date
+)
+
+if active_tickers is not None:
+
+    gainers_df = gainers_df[
+        gainers_df["name"].isin(active_tickers)
+    ].head(20)
+
+    losers_df = losers_df[
+        losers_df["name"].isin(active_tickers)
+    ].head(20)
+
+    value_df = value_df[
+        value_df["name"].isin(active_tickers)
+    ].head(20)
+
+    print(
+        f"Active stock validation: "
+        f"{len(active_tickers)} / "
+        f"{len(candidate_tickers)} candidates active"
+    )
+
+else:
+
+    print(
+        "Yahoo validation unavailable — "
+        "using TradingView results unchanged."
     )
     
 print("Getting full market breadth...")
