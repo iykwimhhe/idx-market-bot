@@ -1,4 +1,4 @@
-name: Test Suspended Stock
+name: Test Suspended Stocks
 
 on:
   workflow_dispatch:
@@ -17,9 +17,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: |
-          pip install tradingview-screener
+        run: pip install -r requirements.txt
 
-      - name: Test TMPO
-        run: |
-          python test_suspended.py
+      - name: Run test
+        run: python test_suspended.py
