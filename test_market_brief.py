@@ -79,39 +79,65 @@ print("=" * 70)
 
 print_section("US GOVERNMENT BONDS")
 
-us_treasury_url = (
-    "https://home.treasury.gov/resource-center/"
-    "data-chart-center/interest-rates/"
-    "TextView?type=daily_treasury_yield_curve"
-    "&field_tdr_date_value=2026"
-)
+def get_us_treasury_yields():
+    year = 2026
 
-try:
-    tables = get_tables(us_treasury_url)
+    csv_url = (
+        f"https://home.treasury.gov/resource-center/data-chart-center/"
+        f"interest-rates/daily-treasury-rates.csv/{year}/all"
+        f"?type=daily_treasury_yield_curve"
+        f"&field_tdr_date_value={year}"
+        f"&page&_format=csv"
+    )
 
-    if tables:
-        df = tables[0]
+    try:
+        df = pd.read_csv(csv_url)
 
-        print("\nLatest Treasury table:")
-        print(df.tail(3).to_string(index=False))
+        df["Date"] = pd.to_datetime(df["Date"])
+        df = df.sort_values("Date")
 
-        print("\nRequested maturities:")
+        latest = df.iloc[-1]
+        previous = df.iloc[-2]
 
-        # Treasury table normally contains:
-        # 2 Mo, 3 Mo, 6 Mo, 1 Yr, 2 Yr, 3 Yr,
-        # 5 Yr, 7 Yr, 10 Yr, 20 Yr, 30 Yr
+        results = {}
 
-        row = df.iloc[-1]
+        for maturity, column in {
+            "US 2Y": "2 Yr",
+            "US 10Y": "10 Yr",
+            "US 20Y": "20 Yr",
+        }.items():
 
-        for maturity in ["2 Yr", "10 Yr", "20 Yr"]:
-            if maturity in df.columns:
-                value = row[maturity]
-                print(f"{maturity:<10} {value}")
-            else:
-                print(f"{maturity:<10} n/a")
+            current = float(latest[column])
+            prev = float(previous[column])
 
-except Exception as e:
-    print(f"US Treasury error: {e}")
+            change = current - prev
+            pct = (change / prev * 100) if prev else None
+
+            results[maturity] = {
+                "date": latest["Date"].strftime("%Y-%m-%d"),
+                "level": current,
+                "change": change,
+                "pct": pct,
+            }
+
+        return results
+
+    treasury = get_us_treasury_yields()
+
+for name in ["US 2Y", "US 10Y", "US 20Y"]:
+    if name in treasury:
+        x = treasury[name]
+        print(
+            f"{name} {x['level']:.2f} "
+            f"{x['change']:+.2f} "
+            f"{x['pct']:+.2f}%"
+        )
+    else:
+        print(f"{name} n/a")
+
+    except Exception as e:
+        print(f"Treasury data error: {e}")
+        return {}
 
 
 # ============================================================
