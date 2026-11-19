@@ -3,7 +3,3 @@ requests
 yfinance
 pandas
 holidays
-feedparser
-pytz
-beautifulsoup4
-lxml
