@@ -122,6 +122,25 @@ def get_us_treasury_yields():
 
         return results
 
+    except Exception as e:
+        print(f"Treasury data error: {e}")
+        return {}
+
+
+treasury = get_us_treasury_yields()
+
+for name in ["US 2Y", "US 10Y", "US 20Y"]:
+    if name in treasury:
+        x = treasury[name]
+        print(
+            f"{name} {x['level']:.2f} "
+            f"{x['change']:+.2f} "
+            f"{x['pct']:+.2f}%"
+        )
+    else:
+        print(f"{name} n/a")
+
+    
     treasury = get_us_treasury_yields()
 
 for name in ["US 2Y", "US 10Y", "US 20Y"]:
