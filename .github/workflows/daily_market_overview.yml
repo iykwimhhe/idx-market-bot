@@ -4,10 +4,8 @@ on:
   schedule:
     # 06:00 WIB (UTC+7) Mon-Fri = 23:00 UTC Sun-Thu
     - cron: '0 23 * * 0-4'
-  # Allows manual test runs from the GitHub Actions tab anytime
   workflow_dispatch:
 
-# Required so the runner can commit updated ici_coal_cache.json back to the repo
 permissions:
   contents: write
 
@@ -28,12 +26,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install yfinance feedparser holidays requests beautifulsoup4 lxml
 
-      - name: Run market overview script and push to Telegram
+      - name: Run morning market overview and push to Telegram
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python market_overview.py
 
       - name: Persist updated ICI coal cache
