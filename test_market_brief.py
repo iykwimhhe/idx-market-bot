@@ -146,61 +146,84 @@ def get_indonesia_bonds():
 
         results = {}
 
+        # AsianBondsOnline embeds the government-bond table in HTML.
+        # Parse each row containing a maturity name instead of relying
+        # on table-wide column positions.
         for maturity in ["2 Year", "5 Year", "10 Year"]:
-
-            # Match the table cell containing the exact maturity.
-            # This avoids accidentally matching dates or other
-            # occurrences of "2 Year" elsewhere on the page.
-            row_match = re.search(
-                rf"<td[^>]*>\s*{re.escape(maturity)}\s*</td>(.*?)</tr>",
-                html,
-                flags=re.IGNORECASE | re.DOTALL,
+            pattern = re.compile(
+                rf"{re.escape(maturity)}.*?",
+                re.IGNORECASE | re.DOTALL
             )
 
-            if not row_match:
+            match = pattern.search(html)
+
+            if not match:
                 continue
 
-            row_html = row_match.group(1)
+            # Restrict the search to a reasonable window after the
+            # maturity label, so unrelated page data cannot be picked up.
+            chunk = html[match.start():match.start() + 5000]
 
-            # Extract the individual table cells.
+            # Strip HTML tags while preserving cell boundaries.
             cells = re.findall(
-                r"<td[^>]*>(.*?)</td>",
-                row_html,
-                flags=re.IGNORECASE | re.DOTALL,
+                r"<t[dh][^>]*>(.*?)</t[dh]>",
+                chunk,
+                flags=re.IGNORECASE | re.DOTALL
             )
 
-            cell_values = []
-
+            clean_cells = []
             for cell in cells:
-                clean = re.sub(r"<[^>]+>", " ", cell)
-                clean = re.sub(r"&nbsp;", " ", clean)
-                clean = re.sub(r"\s+", " ", clean).strip()
-                cell_values.append(clean)
+                value = re.sub(r"<[^>]+>", " ", cell)
+                value = re.sub(r"\s+", " ", value).strip()
+                if value:
+                    clean_cells.append(value)
 
-            if len(cell_values) < 2:
+            row_index = next(
+                (
+                    i for i, value in enumerate(clean_cells)
+                    if maturity.lower() in value.lower()
+                ),
+                None
+            )
+
+            if row_index is None:
                 continue
 
-            # First cell after the maturity is Latest Yield.
-            # Second cell is Previous Day change in basis points.
-            try:
-                latest = float(
-                    re.search(
-                        r"-?\d+(?:,\d{3})*(?:\.\d+)?",
-                        cell_values[0],
-                    ).group(0).replace(",", "")
-                )
+            # Find the first numeric yield after the maturity label.
+            latest_index = None
+            latest = None
 
-                change_match = re.search(
-                    r"-?\d+(?:\.\d+)?",
-                    cell_values[1],
-                )
+            for i in range(row_index + 1, min(row_index + 8, len(clean_cells))):
+                value = clean_cells[i].replace(",", "")
+                if re.fullmatch(r"\d+\.\d+", value):
+                    candidate = float(value)
 
-                if not change_match:
-                    continue
+                    # Indonesia government bond yields are in the
+                    # single-digit percentage range; this also prevents
+                    # dates/other page numbers from being selected.
+                    if 0 < candidate < 20:
+                        latest_index = i
+                        latest = candidate
+                        break
 
-                change_bps = float(change_match.group(0))
+            if latest_index is None:
+                continue
 
-            except (AttributeError, ValueError):
+            # The next numeric cell is the previous-day change in bps.
+            change_bps = None
+
+            for i in range(latest_index + 1, min(latest_index + 6, len(clean_cells))):
+                value = clean_cells[i].replace(",", "")
+                if re.fullmatch(r"[+-]?\d+(?:\.\d+)?", value):
+                    candidate = float(value)
+
+                    # Typical daily yield changes are much smaller than
+                    # the yield itself. AsianBondsOnline reports these in bps.
+                    if abs(candidate) < 50:
+                        change_bps = candidate
+                        break
+
+            if change_bps is None:
                 continue
 
             change = change_bps / 100.0
