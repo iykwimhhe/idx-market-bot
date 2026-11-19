@@ -109,7 +109,6 @@ def send_telegram(message):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     escaped = html.escape(message)
 
-    # Split safely below Telegram's 4,096-character limit (accounting for <pre></pre>)
     max_chunk = 3950
     chunks = []
     current_lines = []
@@ -247,4 +246,144 @@ def get_ici_coal_cached(now_wib, force_refresh=False):
 # ==========================================
 def scrape_tradingeconomics_quote(url):
     try:
-        resp = requests
+        resp = requests.get(url, headers=HEADERS, timeout=10)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "lxml")
+
+        price_el = soup.select_one("#p")
+        diff_el = soup.select_one("#nch")
+        pct_el = soup.select_one("#pch")
+
+        if price_el and diff_el and pct_el:
+            last = float(price_el.text.strip().replace(",", ""))
+            diff = float(diff_el.text.strip().replace(",", ""))
+            pct = float(pct_el.text.strip().replace("%", "").replace(",", ""))
+            return (last, diff, pct)
+    except Exception:
+        pass
+    return None
+
+
+def scrape_indo_benchmarks():
+    return {
+        "SCRAPE_INDO_10Y": scrape_tradingeconomics_quote(
+            "https://tradingeconomics.com/indonesia/government-bond-yield"
+        ),
+        "SCRAPE_INDO_CDS": scrape_tradingeconomics_quote(
+            "https://tradingeconomics.com/indonesia/5-year-cds"
+        ),
+        "SCRAPE_CPO": scrape_tradingeconomics_quote(
+            "https://tradingeconomics.com/commodity/palm-oil"
+        ),
+    }
+
+
+def fetch_headlines(max_items=7):
+    headlines = []
+    for url in RSS_FEEDS:
+        try:
+            feed = feedparser.parse(url)
+            for entry in feed.entries[:3]:
+                title = entry.title.strip().replace("\n", " ")
+                if title not in headlines:
+                    headlines.append(title)
+                if len(headlines) >= max_items:
+                    return headlines
+        except Exception:
+            continue
+    return headlines
+
+
+def fetch_market_data(sections, now_wib):
+    yf_tickers = list(
+        {
+            ticker
+            for items in sections.values()
+            for _, ticker in items
+            if ticker is not None and not ticker.startswith("SCRAPE_")
+        }
+    )
+
+    raw = yf.download(
+        yf_tickers, period="5d", interval="1d", progress=False, threads=True
+    )
+    closes = raw["Close"] if "Close" in raw else raw
+
+    results = {}
+    for ticker in yf_tickers:
+        try:
+            series = closes[ticker].dropna()
+            if len(series) >= 2:
+                prev_close = float(series.iloc[-2])
+                last_close = float(series.iloc[-1])
+                diff = last_close - prev_close
+                pct = (diff / prev_close) * 100
+                results[ticker] = (last_close, diff, pct)
+            elif len(series) == 1:
+                results[ticker] = (float(series.iloc[-1]), 0.0, 0.0)
+            else:
+                results[ticker] = None
+        except Exception:
+            results[ticker] = None
+
+    results.update(scrape_indo_benchmarks())
+    results.update(get_ici_coal_cached(now_wib))
+    return results
+
+
+# ==========================================
+# 5. REPORT FORMATTER & EXECUTION
+# ==========================================
+def format_row(label, data):
+    if not label:
+        return ""
+    if data is None:
+        return f"{label:<13} {'N/A':>10} {'N/A':>9} {'N/A':>8}"
+
+    last, diff, pct = data
+    alert = " !!" if abs(pct) >= 3.0 else ""
+    return f"{label:<13} {last:>10,.2f} {diff:>+9,.2f} {pct:>+7.2f}%{alert}"
+
+
+def generate_report(now_wib):
+    timestamp_str = now_wib.strftime("%d-%b-%Y | %H:%M WIB")
+
+    headlines = fetch_headlines(max_items=7)
+    market_data = fetch_market_data(MARKET_SECTIONS, now_wib)
+
+    lines = [
+        "TODAY'S MARKET OVERVIEW",
+        timestamp_str,
+        "",
+        "HEADLINES",
+    ]
+    for h in headlines:
+        lines.append(f"• {h}")
+    lines.append("")
+
+    for section_name, items in MARKET_SECTIONS.items():
+        lines.append(section_name)
+        for label, ticker in items:
+            if ticker is None:
+                lines.append("")
+            else:
+                lines.append(format_row(label, market_data.get(ticker)))
+        lines.append("")
+
+    return "\n".join(lines).strip()
+
+
+if __name__ == "__main__":
+    now_wib = datetime.now(WIB)
+    today_date = now_wib.date()
+    indo_holidays = holidays.ID()
+
+    if today_date.weekday() >= 5:
+        print("Weekend — market is closed.")
+        exit()
+
+    if today_date in indo_holidays:
+        print(f"Today is holiday: {indo_holidays[today_date]}")
+        exit()
+
+    message = generate_report(now_wib)
