@@ -1,4 +1,6 @@
-import yfinance as yf
+import requests
+import pandas as pd
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -10,232 +12,420 @@ from zoneinfo import ZoneInfo
 WIB = ZoneInfo("Asia/Jakarta")
 now = datetime.now(WIB)
 
-print("=" * 70)
-print("MARKET BRIEF DATA TEST")
-print(f"{now.strftime('%d-%b-%Y | %H:%M')} WIB")
-print("=" * 70)
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 Chrome/130.0 Safari/537.36"
+    )
+}
 
 
 # ============================================================
 # HELPERS
 # ============================================================
 
-def get_yahoo(ticker):
-    """
-    Get the latest available Yahoo Finance price.
-    Returns:
-        price, previous_close, change, change_pct, timestamp
-    """
-
+def get_page(url):
     try:
-        data = yf.Ticker(ticker)
-
-        hist = data.history(
-            period="5d",
-            interval="1d",
-            auto_adjust=False
+        response = requests.get(
+            url,
+            headers=HEADERS,
+            timeout=20
         )
 
-        if hist.empty:
-            return None
-
-        hist = hist.dropna(subset=["Close"])
-
-        if len(hist) == 0:
-            return None
-
-        latest = hist.iloc[-1]
-
-        price = float(latest["Close"])
-
-        if len(hist) >= 2:
-            previous = float(hist.iloc[-2]["Close"])
-            change = price - previous
-
-            if previous != 0:
-                change_pct = (change / previous) * 100
-            else:
-                change_pct = None
-        else:
-            previous = None
-            change = None
-            change_pct = None
-
-        timestamp = hist.index[-1]
-
-        return {
-            "price": price,
-            "previous": previous,
-            "change": change,
-            "change_pct": change_pct,
-            "timestamp": timestamp
-        }
+        response.raise_for_status()
+        return response.text
 
     except Exception as e:
-        print(f"ERROR {ticker}: {e}")
+        print(f"ERROR fetching {url}")
+        print(f"  {e}")
         return None
 
 
-def print_result(name, ticker):
-    result = get_yahoo(ticker)
-
-    if result is None:
-        print(f"{name:<18} n/a")
-        return
-
-    price = result["price"]
-    change = result["change"]
-    change_pct = result["change_pct"]
-
-    if change is None:
-        print(f"{name:<18} {price:,.2f}    n/a       n/a")
-    else:
-        flag = ""
-
-        if abs(change_pct) > 2:
-            flag = " !!"
-
-        print(
-            f"{name:<18} "
-            f"{price:>12,.2f} "
-            f"{change:>12,.2f} "
-            f"{change_pct:>8.2f}%{flag}"
+def get_tables(url):
+    try:
+        return pd.read_html(
+            requests.get(
+                url,
+                headers=HEADERS,
+                timeout=20
+            ).text
         )
 
+    except Exception as e:
+        print(f"ERROR reading tables from {url}")
+        print(f"  {e}")
+        return []
+
+
+def print_section(title):
+    print("\n" + "=" * 70)
+    print(title)
+    print("=" * 70)
+
 
 # ============================================================
-# GLOBAL MARKETS
+# HEADER
 # ============================================================
 
-print("\nGLOBAL MARKETS")
-print("-" * 70)
-
-global_markets = {
-    "DJIA": "^DJI",
-    "Nasdaq": "^IXIC",
-    "S&P 500": "^GSPC",
-    "VIX": "^VIX",
-    "FTSE 100": "^FTSE",
-    "DAX": "^GDAXI",
-    "CAC 40": "^FCHI",
-    "Nikkei": "^N225",
-    "HSI": "^HSI",
-    "KOSPI": "^KS11",
-    "Shanghai": "000001.SS",
-    "EIDO": "EIDO",
-    "USD Index": "DX-Y.NYB",
-    "USD/IDR": "IDR=X",
-}
-
-for name, ticker in global_markets.items():
-    print_result(name, ticker)
+print("=" * 70)
+print("MARKET BRIEF — SECOND STAGE DATA TEST")
+print(f"{now.strftime('%d-%b-%Y | %H:%M')} WIB")
+print("=" * 70)
 
 
 # ============================================================
 # US GOVERNMENT BONDS
 # ============================================================
 
-print("\nGOV. BONDS — US")
-print("-" * 70)
+print_section("US GOVERNMENT BONDS")
 
-us_bonds = {
-    "US 2Y": "^UST2Y",
-    "US 5Y": "^FVX",
-    "US 10Y": "^TNX",
-    "US 20Y": "^UST20Y",
-    "US 30Y": "^TYX",
-}
+us_treasury_url = (
+    "https://home.treasury.gov/resource-center/"
+    "data-chart-center/interest-rates/"
+    "TextView?type=daily_treasury_yield_curve"
+    "&field_tdr_date_value=2026"
+)
 
-for name, ticker in us_bonds.items():
-    print_result(name, ticker)
+try:
+    tables = get_tables(us_treasury_url)
+
+    if tables:
+        df = tables[0]
+
+        print("\nLatest Treasury table:")
+        print(df.tail(3).to_string(index=False))
+
+        print("\nRequested maturities:")
+
+        # Treasury table normally contains:
+        # 2 Mo, 3 Mo, 6 Mo, 1 Yr, 2 Yr, 3 Yr,
+        # 5 Yr, 7 Yr, 10 Yr, 20 Yr, 30 Yr
+
+        row = df.iloc[-1]
+
+        for maturity in ["2 Yr", "10 Yr", "20 Yr"]:
+            if maturity in df.columns:
+                value = row[maturity]
+                print(f"{maturity:<10} {value}")
+            else:
+                print(f"{maturity:<10} n/a")
+
+except Exception as e:
+    print(f"US Treasury error: {e}")
 
 
 # ============================================================
-# COMMODITIES
+# INDONESIA GOVERNMENT BONDS
 # ============================================================
 
-print("\nCOMMODITIES")
-print("-" * 70)
+print_section("INDONESIA GOVERNMENT BONDS")
 
-commodities = {
-    "WTI": "CL=F",
-    "Brent": "BZ=F",
-    "Gold": "GC=F",
-    "Silver": "SI=F",
-    "Copper": "HG=F",
-    "Corn": "ZC=F",
-    "Wheat": "ZW=F",
-    "Natural Gas": "NG=F",
-    "Soybean Oil": "ZL=F",
-    "Rubber": "OJ=F",
-}
+asian_bonds_url = (
+    "https://asianbondsonline.adb.org/indonesia/"
+)
 
-for name, ticker in commodities.items():
-    print_result(name, ticker)
+html = get_page(asian_bonds_url)
+
+if html:
+    try:
+        tables = pd.read_html(html)
+
+        found = False
+
+        for table in tables:
+
+            text = table.to_string()
+
+            if "2 Year" in text and "10 Year" in text:
+
+                print(table.to_string(index=False))
+
+                found = True
+                break
+
+        if not found:
+            print("AsianBondsOnline table not found.")
+
+    except Exception as e:
+        print(f"AsianBondsOnline parsing error: {e}")
+else:
+    print("n/a")
+
+
+# ============================================================
+# INDONESIA 1Y BOND
+# ============================================================
+
+print_section("INDONESIA 1Y BOND")
+
+indo_1y_url = (
+    "https://www.investing.com/rates-bonds/"
+    "indonesia-1-year-bond-yield"
+)
+
+html = get_page(indo_1y_url)
+
+if html:
+
+    # Try to locate the current yield.
+    patterns = [
+        r'"last":([0-9.]+)',
+        r'"last_close":([0-9.]+)',
+        r'"value":([0-9.]+)',
+    ]
+
+    found = False
+
+    for pattern in patterns:
+
+        match = re.search(pattern, html)
+
+        if match:
+
+            print(
+                f"Possible current 1Y yield: "
+                f"{match.group(1)}"
+            )
+
+            found = True
+            break
+
+    if not found:
+        print(
+            "Could not extract 1Y automatically."
+        )
+
+else:
+    print("n/a")
+
+
+# ============================================================
+# INDONESIA 5Y CDS
+# ============================================================
+
+print_section("INDONESIA 5Y CDS")
+
+cds_url = (
+    "https://id.investing.com/rates-bonds/"
+    "indonesia-cds-5-years-usd"
+)
+
+html = get_page(cds_url)
+
+if html:
+
+    patterns = [
+        r'"last":([0-9.]+)',
+        r'"last_close":([0-9.]+)',
+        r'"value":([0-9.]+)',
+    ]
+
+    found = False
+
+    for pattern in patterns:
+
+        match = re.search(pattern, html)
+
+        if match:
+
+            print(
+                f"Possible current CDS: "
+                f"{match.group(1)}"
+            )
+
+            found = True
+            break
+
+    if not found:
+        print("Could not extract CDS automatically.")
+
+else:
+    print("n/a")
 
 
 # ============================================================
 # LME METALS
 # ============================================================
 
-print("\nLME / INDUSTRIAL METALS")
-print("-" * 70)
+print_section("LME 3-MONTH METALS")
 
-lme = {
-    "Copper": "HG=F",
-    "Aluminum": "ALI=F",
-    "Nickel": "NI=F",
-    "Tin": "SN=F",
-}
+lme_url = (
+    "https://www.lme.com/Market-data/"
+    "Reports-and-data/LME-Official-Prices"
+)
 
-for name, ticker in lme.items():
-    print_result(name, ticker)
+html = get_page(lme_url)
 
+if html:
 
-# ============================================================
-# CHINA MARKET
-# ============================================================
+    try:
 
-print("\nCHINA MARKET")
-print("-" * 70)
+        tables = pd.read_html(html)
 
-china = {
-    "Iron Ore": "TIO=F",
-    "Thermal Coal": "MTF=F",
-    "Coking Coal": "JMM=F",
-}
+        found = False
 
-for name, ticker in china.items():
-    print_result(name, ticker)
+        for table in tables:
 
+            text = table.to_string()
 
-# ============================================================
-# CURRENCY
-# ============================================================
+            if "Nickel" in text and "Tin" in text:
 
-print("\nCURRENCY")
-print("-" * 70)
+                print(table.to_string(index=False))
 
-currencies = {
-    "USD/IDR": "IDR=X",
-    "SGD/IDR": "SGDIDR=X",
-    "MYR/IDR": "MYRIDR=X",
-    "JPY/IDR": "JPYIDR=X",
-    "AUD/IDR": "AUDIDR=X",
-}
+                found = True
+                break
 
-for name, ticker in currencies.items():
-    print_result(name, ticker)
+        if not found:
+            print("LME table not found.")
+
+    except Exception as e:
+        print(f"LME parsing error: {e}")
+
+else:
+    print("n/a")
 
 
 # ============================================================
-# SUMMARY
+# NEWCASTLE COAL
 # ============================================================
 
-print("\n" + "=" * 70)
-print("TEST COMPLETE")
-print("=" * 70)
-print()
-print("This is ONLY a data-source test.")
-print("No Telegram message has been sent.")
-print("No existing IDX bot files are modified.")
+print_section("NEWCASTLE COAL")
+
+newcastle_url = (
+    "https://www.investing.com/commodities/"
+    "newcastle-coal-futures"
+)
+
+html = get_page(newcastle_url)
+
+if html:
+
+    print(
+        "Newcastle page successfully retrieved."
+    )
+
+    # Look for contract/month information
+    months = re.findall(
+        r'(Nov|Dec|Jan|Feb|Mar)\s*[\' ]?26|'
+        r'(Nov|Dec|Jan|Feb|Mar)\s*27',
+        html,
+        flags=re.IGNORECASE
+    )
+
+    print(
+        f"Contract month references found: "
+        f"{len(months)}"
+    )
+
+else:
+    print("n/a")
+
+
+# ============================================================
+# ROTTERDAM COAL
+# ============================================================
+
+print_section("ROTTERDAM COAL")
+
+rotterdam_url = (
+    "https://www.tradingview.com/symbols/"
+    "ICEEUR-ATW1%21/contracts/"
+)
+
+html = get_page(rotterdam_url)
+
+if html:
+
+    print(
+        "TradingView Rotterdam contracts page "
+        "successfully retrieved."
+    )
+
+    # Extract contract rows containing API2
+    lines = html.splitlines()
+
+    matches = []
+
+    for line in lines:
+
+        if "API2 Rotterdam Coal Futures" in line:
+
+            matches.append(
+                re.sub("<.*?>", " ", line)
+            )
+
+    if matches:
+
+        for match in matches[:10]:
+            print(match[:500])
+
+    else:
+        print(
+            "Could not extract contract rows "
+            "from raw HTML."
+        )
+
+else:
+    print("n/a")
+
+
+# ============================================================
+# ICI
+# ============================================================
+
+print_section("INDONESIA COAL INDEX — ICI")
+
+ici_url = (
+    "https://www.iomi-coal.com/"
+)
+
+html = get_page(ici_url)
+
+if html:
+
+    print(
+        "IOMI ICI page successfully retrieved."
+    )
+
+    try:
+
+        tables = pd.read_html(html)
+
+        found = False
+
+        for table in tables:
+
+            text = table.to_string()
+
+            if "ICI 1" in text:
+
+                print(table.to_string(index=False))
+
+                found = True
+                break
+
+        if not found:
+            print(
+                "ICI table not found in HTML."
+            )
+
+    except Exception as e:
+        print(f"ICI parsing error: {e}")
+
+else:
+    print("n/a")
+
+
+# ============================================================
+# DONE
+# ============================================================
+
+print_section("SECOND-STAGE TEST COMPLETE")
+
+print(
+    "\nNo Telegram message was sent."
+)
+
+print(
+    "No existing IDX bot files were modified."
+)
