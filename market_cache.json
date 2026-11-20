@@ -6,7 +6,7 @@
       "pct": null,
       "stale": true,
       "source": "Argus/Coalindo",
-      "timestamp": "2026-11-19"
+      "timestamp": "2026-11-20"
     },
     "ICI 2": {
       "level": 72.24,
@@ -14,7 +14,7 @@
       "pct": null,
       "stale": true,
       "source": "Argus/Coalindo",
-      "timestamp": "2026-11-19"
+      "timestamp": "2026-11-20"
     },
     "ICI 3": {
       "level": 51.18,
@@ -22,7 +22,7 @@
       "pct": null,
       "stale": true,
       "source": "Argus/Coalindo",
-      "timestamp": "2026-11-19"
+      "timestamp": "2026-11-20"
     },
     "ICI 4": {
       "level": 31.78,
@@ -30,7 +30,7 @@
       "pct": null,
       "stale": true,
       "source": "Argus/Coalindo",
-      "timestamp": "2026-11-19"
+      "timestamp": "2026-11-20"
     }
   }
 }
