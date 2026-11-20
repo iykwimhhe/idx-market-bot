@@ -1,9 +1,7 @@
 name: Daily Market Overview
 
 on:
-  schedule:
-    # Runs at 06:30 WIB (23:30 UTC) Sunday–Thursday for Monday–Friday mornings
-    - cron: "30 23 * * 0-4"
+
   workflow_dispatch:
 
 permissions:
