@@ -548,8 +548,8 @@ for start in range(0, len(tickers), BATCH_SIZE):
                 and today_k <= 35
             )
 
-            if not golden_cross:
-                continue
+            if golden_cross:
+                stoch_signals.append(...)
 
             # ====================================
             # TRADINGVIEW DATA
@@ -799,7 +799,6 @@ else:
             f"{stock['change']:>6.2f}% "
             f"{traded:>5.1f}B "
             f"K{stock['k']:>5.2f} "
-            f"D{stock['d']:>5.2f}\n"
         )
 
 # ====================================
