@@ -415,6 +415,7 @@ for _, row in stock_list_df.iterrows():
     }
 
 stoch_signals = []
+oversold_signals = []
 
 # ====================================
 # PREPARE TICKERS
@@ -537,7 +538,7 @@ for start in range(0, len(tickers), BATCH_SIZE):
                 slow_d.iloc[-2]
             )
 
-            # ====================================
+                        # ====================================
             # ACTUAL GOLDEN CROSS
             # ====================================
 
@@ -546,9 +547,6 @@ for start in range(0, len(tickers), BATCH_SIZE):
                 and today_k > today_d
                 and today_k <= 35
             )
-
-            if not golden_cross:
-                continue
 
             # ====================================
             # TRADINGVIEW DATA
@@ -579,21 +577,42 @@ for start in range(0, len(tickers), BATCH_SIZE):
                     f"Price={price:,.0f} | "
                     f"Change={price_change:+.2f}% | "
                     f"Value={transaction_value:,.0f}"
-            )
-    
+                )
+
             # ====================================
-            # SAVE SIGNAL
+            # SAVE GOLDEN CROSS SIGNAL
             # ====================================
 
-            stoch_signals.append({
-                "name": symbol,
-                "close": price,
-                "change": price_change,
-                "transaction_value": transaction_value,
-                "k": today_k,
-                "d": today_d
-            })
+            if golden_cross:
+                stoch_signals.append({
+                    "name": symbol,
+                    "close": price,
+                    "change": price_change,
+                    "transaction_value": transaction_value,
+                    "k": today_k,
+                    "d": today_d
+                })
 
+            # ====================================
+            # STOCHASTIC OVERSOLD
+            # K < 20, D < 20, K < D
+            # Minimum traded value: Rp1 Billion
+            # ====================================
+
+            if (
+                transaction_value >= 1_000_000_000
+                and today_k < 20
+                and today_d < 20
+                and today_k < today_d
+            ):
+                oversold_signals.append({
+                    "name": symbol,
+                    "close": price,
+                    "change": price_change,
+                    "transaction_value": transaction_value,
+                    "k": today_k
+                })
+                
         except Exception as e:
 
             print(
@@ -614,6 +633,18 @@ stoch_signals = sorted(
 
 # Maximum 20 stocks
 stoch_signals = stoch_signals[:20]
+
+# ====================================
+# SORT OVERSOLD — LOWEST K FIRST
+# ====================================
+
+oversold_signals = sorted(
+    oversold_signals,
+    key=lambda x: x["k"]
+)
+
+# Maximum 20 stocks
+oversold_signals = oversold_signals[:20]
 
 # ====================================
 # BUILD MESSAGE
@@ -711,18 +742,28 @@ for i, (_, row) in enumerate(value_df.iterrows(), start=1):
 )
 
 # ====================================
+# SEND MAIN MARKET MESSAGE
+# ====================================
+
+main_message = message
+
+# ====================================
+# STOCHASTIC SIGNALS MESSAGE
+# ====================================
+
+stoch_message = ""
+
+# ====================================
 # STOCHASTIC GOLDEN CROSS MESSAGE
 # ====================================
 
-message += "\n⚡ STOCHASTIC GOLDEN CROSS 10,5,5\n"
-message += "━━━━━━━━━━━━━━━━\n"
+stoch_message += "⚡ STOCHASTIC GOLDEN CROSS 10,5,5\n"
+stoch_message += "━━━━━━━━━━━━━━━━\n"
 
 if not stoch_signals:
-
-    message += "No signal today.\n"
+    stoch_message += "No signal today.\n"
 
 else:
-
     for i, stock in enumerate(stoch_signals, start=1):
 
         name = stock["name"][:6].ljust(6)
@@ -732,7 +773,7 @@ else:
             / 1_000_000_000
         )
 
-        message += (
+        stoch_message += (
             f"{i:>2}. "
             f"{name:<5} "
             f"Rp{stock['close']:>6,.0f} "
@@ -742,13 +783,44 @@ else:
         )
 
 # ====================================
-# PRINT MESSAGE
+# STOCHASTIC OVERSOLD MESSAGE
 # ====================================
 
-print(message)
+stoch_message += "\n🔻 STOCHASTIC OVERSOLD 10,5,5\n"
+stoch_message += "━━━━━━━━━━━━━━━━\n"
+
+if not oversold_signals:
+    stoch_message += "No signal today.\n"
+
+else:
+    for i, stock in enumerate(oversold_signals, start=1):
+
+        name = stock["name"][:6].ljust(6)
+
+        traded = (
+            stock["transaction_value"]
+            / 1_000_000_000
+        )
+
+        stoch_message += (
+            f"{i:>2}. "
+            f"{name:<5} "
+            f"Rp{stock['close']:>6,.0f} "
+            f"{stock['change']:>6.2f}% "
+            f"{traded:>5.1f}B "
+            f"K{stock['k']:>5.2f}\n"
+        )
+
+# ====================================
+# PRINT MESSAGES
+# ====================================
+
+print(main_message)
+print(stoch_message)
 
 # ====================================
 # SEND TELEGRAM
 # ====================================
 
-send_telegram(message)
+send_telegram(main_message)
+send_telegram(stoch_message)
