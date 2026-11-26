@@ -742,18 +742,28 @@ for i, (_, row) in enumerate(value_df.iterrows(), start=1):
 )
 
 # ====================================
+# SEND MAIN MARKET MESSAGE
+# ====================================
+
+main_message = message
+
+# ====================================
+# STOCHASTIC SIGNALS MESSAGE
+# ====================================
+
+stoch_message = ""
+
+# ====================================
 # STOCHASTIC GOLDEN CROSS MESSAGE
 # ====================================
 
-message += "\n⚡ STOCHASTIC GOLDEN CROSS 10,5,5\n"
-message += "━━━━━━━━━━━━━━━━\n"
+stoch_message += "⚡ STOCHASTIC GOLDEN CROSS 10,5,5\n"
+stoch_message += "━━━━━━━━━━━━━━━━\n"
 
 if not stoch_signals:
-
-    message += "No signal today.\n"
+    stoch_message += "No signal today.\n"
 
 else:
-
     for i, stock in enumerate(stoch_signals, start=1):
 
         name = stock["name"][:6].ljust(6)
@@ -763,7 +773,7 @@ else:
             / 1_000_000_000
         )
 
-        message += (
+        stoch_message += (
             f"{i:>2}. "
             f"{name:<5} "
             f"Rp{stock['close']:>6,.0f} "
@@ -776,13 +786,15 @@ else:
 # STOCHASTIC OVERSOLD MESSAGE
 # ====================================
 
-message += "\n🔻 STOCHASTIC OVERSOLD 10,5,5\n"
-message += "━━━━━━━━━━━━━━━━\n"
+stoch_message += "\n🔻 STOCHASTIC OVERSOLD 10,5,5\n"
+stoch_message += "━━━━━━━━━━━━━━━━\n"
 
 if not oversold_signals:
-    message += "No signal today.\n"
+    stoch_message += "No signal today.\n"
+
 else:
     for i, stock in enumerate(oversold_signals, start=1):
+
         name = stock["name"][:6].ljust(6)
 
         traded = (
@@ -790,7 +802,7 @@ else:
             / 1_000_000_000
         )
 
-        message += (
+        stoch_message += (
             f"{i:>2}. "
             f"{name:<5} "
             f"Rp{stock['close']:>6,.0f} "
@@ -800,13 +812,15 @@ else:
         )
 
 # ====================================
-# PRINT MESSAGE
+# PRINT MESSAGES
 # ====================================
 
-print(message)
+print(main_message)
+print(stoch_message)
 
 # ====================================
 # SEND TELEGRAM
 # ====================================
 
-send_telegram(message)
+send_telegram(main_message)
+send_telegram(stoch_message)
