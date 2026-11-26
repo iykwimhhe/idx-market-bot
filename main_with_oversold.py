@@ -538,7 +538,7 @@ for start in range(0, len(tickers), BATCH_SIZE):
                 slow_d.iloc[-2]
             )
 
-            # ====================================
+                        # ====================================
             # ACTUAL GOLDEN CROSS
             # ====================================
 
@@ -547,9 +547,6 @@ for start in range(0, len(tickers), BATCH_SIZE):
                 and today_k > today_d
                 and today_k <= 35
             )
-
-            if golden_cross:
-                stoch_signals.append(...)
 
             # ====================================
             # TRADINGVIEW DATA
@@ -580,8 +577,22 @@ for start in range(0, len(tickers), BATCH_SIZE):
                     f"Price={price:,.0f} | "
                     f"Change={price_change:+.2f}% | "
                     f"Value={transaction_value:,.0f}"
-            )
-    
+                )
+
+            # ====================================
+            # SAVE GOLDEN CROSS SIGNAL
+            # ====================================
+
+            if golden_cross:
+                stoch_signals.append({
+                    "name": symbol,
+                    "close": price,
+                    "change": price_change,
+                    "transaction_value": transaction_value,
+                    "k": today_k,
+                    "d": today_d
+                })
+
             # ====================================
             # STOCHASTIC OVERSOLD
             # K < 20, D < 20, K < D
@@ -601,20 +612,7 @@ for start in range(0, len(tickers), BATCH_SIZE):
                     "transaction_value": transaction_value,
                     "k": today_k
                 })
-
-            # ====================================
-            # SAVE SIGNAL
-            # ====================================
-
-            stoch_signals.append({
-                "name": symbol,
-                "close": price,
-                "change": price_change,
-                "transaction_value": transaction_value,
-                "k": today_k,
-                "d": today_d
-            })
-
+                
         except Exception as e:
 
             print(
@@ -798,7 +796,7 @@ else:
             f"Rp{stock['close']:>6,.0f} "
             f"{stock['change']:>6.2f}% "
             f"{traded:>5.1f}B "
-            f"K{stock['k']:>5.2f} "
+            f"K{stock['k']:>5.2f}\n"
         )
 
 # ====================================
